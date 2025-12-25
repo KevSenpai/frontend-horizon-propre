@@ -1,11 +1,11 @@
 import axios from 'axios';
 
-// 1. DÉCLARER LA CONSTANTE ICI (En dehors de l'objet)
+// 1. On déclare la constante EN DEHORS de l'objet
 const API_URL = 'https://horizon-api.onrender.com';
 
-// 2. CRÉER L'INSTANCE
+// 2. On utilise la constante dedans
 export const api = axios.create({
-  baseURL: API_URL, // Utilisation de la variable
+  baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
