@@ -1,0 +1,33 @@
+# Dépendances (Lourd, on ne commit jamais ça)
+/node_modules
+
+# Build de production (Généré automatiquement)
+/dist
+
+# Configuration et Secrets (CRITIQUE : Ne jamais commiter !)
+.env
+.env.production
+.env.development
+.env.test
+
+# Logs et debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Fichiers système
+.DS_Store
+Thumbs.db
+
+# IDE (Configuration de l'éditeur, propre à chaque développeur)
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Coverage des tests
+/coverage
+
+# TypeScript build info
+*.tsbuildinfo
