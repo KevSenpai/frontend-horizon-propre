@@ -19,8 +19,8 @@ export default function CreateVehicleModal({ opened, close, onSuccess }: Props) 
       status: 'OPERATIONAL',
     },
     validate: {
-      name: (value) => (value.length < 2 ? 'Le nom est trop court' : null),
-      license_plate: (value) => (value.length < 2 ? 'Plaque requise' : null),
+      name: (value : string) => (value.length < 2 ? 'Le nom est trop court' : null),
+      license_plate: (value : string) => (value.length < 2 ? 'Plaque requise' : null),
     },
   });
 

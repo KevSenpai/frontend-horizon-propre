@@ -82,7 +82,7 @@ export default function ToursPage() {
           </Table.Thead>
           <Table.Tbody>{rows}</Table.Tbody>
         </Table>
-        {tours.length === 0 && <Text align="center" py="xl" c="dimmed">Aucune tournée planifiée.</Text>}
+        {tours.length === 0 && <Text ta="center" py="xl" c="dimmed">Aucune tournée planifiée.</Text>}
       </Paper>
 
       <CreateTourModal opened={opened} close={close} onSuccess={fetchTours} />

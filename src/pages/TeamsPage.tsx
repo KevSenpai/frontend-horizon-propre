@@ -11,6 +11,7 @@ interface Team {
   name: string;
   members_info: string;
   status: 'ACTIVE' | 'INACTIVE';
+  created_at?: string;
 }
 
 export default function TeamsPage() {
@@ -87,7 +88,7 @@ export default function TeamsPage() {
         </Table>
         
         {!loading && teams.length === 0 && (
-          <Text align="center" py="xl" c="dimmed">Aucune équipe trouvée.</Text>
+          <Text ta="center" py="xl" c="dimmed">Aucune équipe trouvée.</Text>
         )}
       </Paper>
 

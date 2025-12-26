@@ -187,7 +187,7 @@ export default function TourDetailsPage() {
             </Group>
             
             <ScrollArea style={{ flex: 1 }}>
-              {availableClients.length === 0 && <Text c="dimmed" size="sm" align="center">Aucun client disponible.</Text>}
+              {availableClients.length === 0 && <Text c="dimmed" size="sm" ta="center">Aucun client disponible.</Text>}
               
               {availableClients.map(client => (
                 <Paper key={client.id} withBorder p="sm" mb="xs" shadow="none" bg={!isEditable ? 'gray.1' : 'white'}>
@@ -221,7 +221,7 @@ export default function TourDetailsPage() {
                 {(provided) => (
                   <ScrollArea style={{ flex: 1 }} {...provided.droppableProps} ref={provided.innerRef}>
                     
-                    {tourClients.length === 0 && <Text c="dimmed" align="center" mt="xl">Tournée vide</Text>}
+                    {tourClients.length === 0 && <Text c="dimmed" ta="center" mt="xl">Tournée vide</Text>}
 
                     {tourClients.map((tc: any, index: number) => (
                       <Draggable key={tc.clientId} draggableId={tc.clientId} index={index} isDragDisabled={!isEditable}>
