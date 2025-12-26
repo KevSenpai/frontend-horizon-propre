@@ -83,6 +83,7 @@ export default function VehiclesPage() {
         
         {!loading && vehicles.length === 0 && (
           <Text ta="center" py="xl" c="dimmed">Aucun véhicule trouvé.</Text>
+        )}
       </Paper>
 
       <CreateVehicleModal opened={opened} close={close} onSuccess={fetchVehicles} />
