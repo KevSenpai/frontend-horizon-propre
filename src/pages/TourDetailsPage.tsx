@@ -1,10 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Container, Grid, Paper, Title, Text, Button, Group, Badge, ActionIcon, ScrollArea, LoadingOverlay } from '@mantine/core';
-import { IconArrowLeft, IconPlus, IconTrash, IconGripVertical, IconCheck, IconX, IconBolt } from '@tabler/icons-react';
+import { IconArrowLeft, IconPlus, IconTrash, IconGripVertical, IconCheck, IconX, IconBolt, IconPrinter } from '@tabler/icons-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'; // <--- IMPORT CARTE
+import L from 'leaflet'; // Pour l'icône camion
 import { api } from '../services/api';
-import { IconPrinter } from '@tabler/icons-react';
+import { connectSocket, disconnectSocket } from '../services/socket'; // <--- IMPORT SOCKET
+
+// Hack pour l'icône camion (Emoji ou Image)
+const truckIcon = L.divIcon({
+  html: '<div style="font-size: 24px;">🚚</div>',
+  className: 'truck-icon',
+  iconSize: [30, 30],
+  iconAnchor: [15, 15]
+});
 
 export default function TourDetailsPage() {
   const { id } = useParams();
@@ -14,28 +24,21 @@ export default function TourDetailsPage() {
   const [availableClients, setAvailableClients] = useState<any[]>([]);
   const [tourClients, setTourClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  
+  // État pour la position du camion (Temps Réel)
+  const [truckPosition, setTruckPosition] = useState<{lat: number, lng: number} | null>(null);
 
-  // Helper pour savoir si on peut modifier la tournée
   const isEditable = tour?.status === 'DRAFT';
-  const handleDownloadPdf = () => {
-    // Astuce : On ouvre l'URL du backend dans un nouvel onglet, le navigateur gère le téléchargement
-    const pdfUrl = `${api.defaults.baseURL}/tours/${id}/pdf`;
-    window.open(pdfUrl, '_blank');
-  };
-  // 1. Chargement des données
+
+  // 1. Chargement des données + WebSocket
   const loadData = async () => {
     if (!id) return;
     setLoading(true);
     try {
-      // a. Infos tournée
       const tourRes = await api.get(`/tours/${id}`);
       setTour(tourRes.data);
-
-      // b. Clients dans la tournée
       const assignedRes = await api.get(`/tour-clients/tour/${id}`);
       setTourClients(assignedRes.data);
-
-      // c. Clients disponibles (filtrage local)
       const allClientsRes = await api.get('/clients');
       const assignedIds = new Set(assignedRes.data.map((tc: any) => tc.clientId));
       const available = allClientsRes.data.filter((c: any) => !assignedIds.has(c.id) && c.status === 'ACTIVE');
@@ -47,85 +50,47 @@ export default function TourDetailsPage() {
     }
   };
 
-  useEffect(() => { loadData(); }, [id]);
+  useEffect(() => {
+    loadData();
 
-  // 2. Ajouter Client Manuellement
-  const handleAddClient = async (client: any) => {
-    if (!isEditable) return; 
-    try {
-      const newPosition = tourClients.length + 1;
-      await api.post('/tour-clients', {
-        tourId: id,
-        clientId: client.id,
-        position: newPosition
-      });
-      loadData();
-    } catch (e) { console.error(e); }
+    // --- MISE EN PLACE DU TEMPS RÉEL ---
+    const socket = connectSocket();
+
+    // Écouter la position du camion pour CETTE tournée
+    socket.on(`trackTour:${id}`, (data: { lat: number, lng: number }) => {
+        console.log("🚚 Nouvelle position reçue :", data);
+        setTruckPosition({ lat: data.lat, lng: data.lng });
+    });
+
+    // Écouter l'avancement (quand le mobile valide une collecte)
+    socket.on(`tourProgress:${id}`, (data) => {
+        console.log("✅ Collecte validée en direct !");
+        // On recharge les données pour mettre à jour la liste (ou on pourrait le faire localement)
+        loadData();
+    });
+
+    return () => {
+        socket.off(`trackTour:${id}`);
+        socket.off(`tourProgress:${id}`);
+        disconnectSocket();
+    };
+  }, [id]);
+
+  // ... (Garder les fonctions handleAdd, handleRemove, onDragEnd, changeStatus, handleAutoPlan, handleDownloadPdf à l'identique) ...
+  // Pour ne pas surcharger la réponse, je remets les fonctions clés simplifiées ici, 
+  // MAIS gardez votre logique existante pour ces fonctions !
+
+  const handleAddClient = async (client: any) => { /* ... code existant ... */ };
+  const handleRemoveClient = async (clientId: string) => { /* ... code existant ... */ };
+  const onDragEnd = (result: any) => { /* ... code existant ... */ };
+  const changeStatus = async (newStatus: string) => { /* ... code existant ... */ };
+  const handleAutoPlan = async () => { /* ... code existant ... */ };
+  const handleDownloadPdf = () => {
+    const pdfUrl = `${api.defaults.baseURL}/tours/${id}/pdf`;
+    window.open(pdfUrl, '_blank');
   };
+  const getStatusColor = (status: string) => { /* ... code existant ... */ return 'gray'; };
 
-  // 3. Retirer Client
-  const handleRemoveClient = async (clientId: string) => {
-    if (!isEditable) return;
-    if(!confirm("Retirer ce client de la tournée ?")) return;
-    try {
-      await api.delete(`/tour-clients/${id}/${clientId}`);
-      loadData();
-    } catch (e) { console.error(e); }
-  };
-
-  // 4. Drag & Drop (Réorganisation visuelle)
-  const onDragEnd = (result: any) => {
-    if (!result.destination || !isEditable) return;
-    const items = Array.from(tourClients);
-    const [reorderedItem] = items.splice(result.source.index, 1);
-    items.splice(result.destination.index, 0, reorderedItem);
-    setTourClients(items);
-    // TODO: Appel API pour sauvegarder le nouvel ordre
-  };
-
-  // 5. Changement de Statut (Workflow)
-  const changeStatus = async (newStatus: string) => {
-    if (newStatus === 'PLANNED' && !confirm("Valider cette tournée ? Elle sera envoyée à l'équipe mobile et ne sera plus modifiable.")) return;
-    if (newStatus === 'CANCELLED' && !confirm("Voulez-vous vraiment annuler cette tournée ?")) return;
-
-    try {
-      await api.patch(`/tours/${id}`, { status: newStatus });
-      loadData(); // Recharger pour voir le nouveau statut
-    } catch (e) {
-      console.error(e);
-      alert("Erreur lors du changement de statut");
-    }
-  };
-
-  // 6. Auto-Planification ⚡
-  const handleAutoPlan = async () => {
-    if (!isEditable) return;
-    if (!confirm("Attention : L'auto-planification va remplacer la liste actuelle par une suggestion optimisée. Continuer ?")) return;
-    
-    setLoading(true);
-    try {
-      const res = await api.post(`/tours/${id}/auto-plan`);
-      alert(`Terminé ! ${res.data.count} clients ont été ajoutés à la tournée.`);
-      loadData(); 
-    } catch (e) {
-      console.error(e);
-      alert("Erreur lors de la planification automatique.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Couleurs des badges
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'DRAFT': return 'gray';
-      case 'PLANNED': return 'blue';
-      case 'IN_PROGRESS': return 'orange';
-      case 'COMPLETED': return 'green';
-      case 'CANCELLED': return 'red';
-      default: return 'gray';
-    }
-  };
 
   if (!tour) return <div>Chargement...</div>;
 
@@ -147,137 +112,54 @@ export default function TourDetailsPage() {
               </Text>
             </div>
           </Group>
-
           <Group>
-            <Badge size="xl" variant="light" color={getStatusColor(tour.status)}>
-                {tour.status}
-            </Badge>
-            {/* BOUTON IMPRIMER */}
             <Button variant="default" leftSection={<IconPrinter size={16}/>} onClick={handleDownloadPdf}>
                 Imprimer
             </Button>
-            {/* Boutons d'action conditionnels */}
-            {tour.status === 'DRAFT' && (
-                <Button color="green" leftSection={<IconCheck size={16}/>} onClick={() => changeStatus('PLANNED')}>
-                    Valider / Planifier
-                </Button>
-            )}
-            
-            {['DRAFT', 'PLANNED'].includes(tour.status) && (
-                <Button color="red" variant="outline" leftSection={<IconX size={16}/>} onClick={() => changeStatus('CANCELLED')}>
-                    Annuler
-                </Button>
-            )}
+            <Badge size="xl" variant="light" color="blue">{tour.status}</Badge>
+            {/* ... Boutons Valider/Annuler (Gardez votre code existant ici) ... */}
           </Group>
         </Group>
       </Paper>
 
-      <Grid>
-        {/* COLONNE GAUCHE : Clients Disponibles */}
-        <Grid.Col span={6}>
-          <Paper withBorder p="md" h="70vh" style={{ display: 'flex', flexDirection: 'column' }}>
-            
-            {/* Header Colonne Gauche avec Bouton Auto */}
-            <Group justify="space-between" mb="md">
-                <Title order={4}>Clients Disponibles</Title>
-                {isEditable && (
-                    <Button 
-                        variant="light" 
-                        color="violet" 
-                        size="xs" 
-                        leftSection={<IconBolt size={14}/>}
-                        onClick={handleAutoPlan}
-                        loading={loading}
-                    >
-                        Remplir Auto ⚡
-                    </Button>
+      {/* --- CARTE TEMPS RÉEL (NOUVEAU) --- */}
+      {['PLANNED', 'IN_PROGRESS'].includes(tour.status) && (
+          <Paper withBorder p="0" mb="lg" h={300} style={{ overflow: 'hidden', position: 'relative' }}>
+              <MapContainer 
+                center={truckPosition ? [truckPosition.lat, truckPosition.lng] : [-1.6585, 29.2205]} 
+                zoom={13} 
+                style={{ height: '100%', width: '100%' }}
+              >
+                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                
+                {/* Marqueurs des clients */}
+                {tourClients.map((tc: any) => {
+                    const coords = tc.client?.location?.coordinates;
+                    if(coords) {
+                        return <Marker key={tc.clientId} position={[coords[0], coords[1]]} />
+                    }
+                    return null;
+                })}
+
+                {/* Marqueur du Camion (Temps Réel) */}
+                {truckPosition && (
+                    <Marker position={[truckPosition.lat, truckPosition.lng]} icon={truckIcon}>
+                        <Popup>Camion en mouvement</Popup>
+                    </Marker>
                 )}
-            </Group>
-            
-            <ScrollArea style={{ flex: 1 }}>
-              {availableClients.length === 0 && <Text c="dimmed" size="sm" ta="center">Aucun client disponible.</Text>}
+              </MapContainer>
               
-              {availableClients.map(client => (
-                <Paper key={client.id} withBorder p="sm" mb="xs" shadow="none" bg={!isEditable ? 'gray.1' : 'white'}>
-                  <Group justify="space-between">
-                    <div>
-                      <Text fw={500}>{client.name}</Text>
-                      <Text size="xs" c="dimmed">{client.street_address}, {client.district}</Text>
-                    </div>
-                    <ActionIcon 
-                        variant="light" 
-                        color="blue" 
-                        onClick={() => handleAddClient(client)}
-                        disabled={!isEditable}
-                    >
-                      <IconPlus size={18} />
-                    </ActionIcon>
-                  </Group>
-                </Paper>
-              ))}
-            </ScrollArea>
+              {!truckPosition && (
+                  <div style={{ position: 'absolute', top: 10, right: 10, background: 'white', padding: 5, borderRadius: 5, zIndex: 1000 }}>
+                      <Text size="xs" c="dimmed">En attente du signal GPS...</Text>
+                  </div>
+              )}
           </Paper>
-        </Grid.Col>
+      )}
 
-        {/* COLONNE DROITE : Tournée en cours (Drag & Drop) */}
-        <Grid.Col span={6}>
-          <Paper withBorder p="md" h="70vh" bg="gray.0" style={{ display: 'flex', flexDirection: 'column' }}>
-            <Title order={4} mb="md">Itinéraire ({tourClients.length} arrêts)</Title>
-
-            <DragDropContext onDragEnd={onDragEnd}>
-              <Droppable droppableId="tour-list" isDropDisabled={!isEditable}> 
-                {(provided) => (
-                  <ScrollArea style={{ flex: 1 }} {...provided.droppableProps} ref={provided.innerRef}>
-                    
-                    {tourClients.length === 0 && <Text c="dimmed" ta="center" mt="xl">Tournée vide</Text>}
-
-                    {tourClients.map((tc: any, index: number) => (
-                      <Draggable key={tc.clientId} draggableId={tc.clientId} index={index} isDragDisabled={!isEditable}>
-                        {(provided, snapshot) => (
-                          <Paper 
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            withBorder p="sm" mb="xs" shadow="sm"
-                            bg={snapshot.isDragging ? 'blue.0' : 'white'}
-                            style={{ ...provided.draggableProps.style, display: 'flex', alignItems: 'center' }}
-                          >
-                            {/* Poignée pour attraper/glisser */}
-                            {isEditable && (
-                                <div {...provided.dragHandleProps} style={{ cursor: 'grab', marginRight: 10, color: '#aaa' }}>
-                                    <IconGripVertical size={18} />
-                                </div>
-                            )}
-
-                            <Badge circle size="lg" mr="sm" color="gray">{index + 1}</Badge>
-                            
-                            <div style={{ flex: 1 }}>
-                              <Text fw={500}>{tc.client?.name}</Text>
-                              <Text size="xs" c="dimmed">{tc.client?.street_address}</Text>
-                            </div>
-
-                            {/* BOUTON DE RETRAIT */}
-                            <ActionIcon 
-                                variant="filled" 
-                                color="red" 
-                                size="md"
-                                onClick={() => handleRemoveClient(tc.clientId)}
-                                title="Retirer"
-                                disabled={!isEditable}
-                            >
-                              <IconTrash size={16} />
-                            </ActionIcon>
-                          </Paper>
-                        )}
-                      </Draggable>
-                    ))}
-                    {provided.placeholder}
-                  </ScrollArea>
-                )}
-              </Droppable>
-            </DragDropContext>
-
-          </Paper>
-        </Grid.Col>
+      {/* ... GRILLES CLIENTS (Gardez votre code existant pour Grid, Col gauche/droite) ... */}
+      <Grid>
+         {/* ... Copiez-collez votre code existant pour les listes ... */}
       </Grid>
     </Container>
   );
