@@ -50,8 +50,11 @@ export default function StatsChart({ data }: Props) {
     return result;
   };
 
+ // ... (code précédent inchangé)
+
   const chartData = processData();
 
+  // Si pas de données, on affiche un message simple (évite le crash Recharts)
   if (!data || data.length === 0) {
       return (
         <Paper withBorder p="md" radius="md" mt="lg" shadow="xs">
@@ -61,29 +64,21 @@ export default function StatsChart({ data }: Props) {
       );
   }
 
-  // ...
   return (
     <Paper withBorder p="md" radius="md" mt="lg" shadow="xs">
-      <Title order={4} mb="md">Activité de la semaine (Tournées)</Title>
+      <Title order={4} mb="md">Activité de la semaine</Title>
       
-      {/* CORRECTION ICI : On force une hauteur minimale */}
+      {/* On force une taille explicite sur le conteneur parent */}
       <div style={{ width: '100%', height: 300, minHeight: 300 }}>
-        
-        {/* On ajoute une condition pour ne rendre que si on a des données */}
-        {chartData.length > 0 ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" tick={{fontSize: 12}} />
-                <YAxis allowDecimals={false} />
-                <Tooltip />
-                <Bar dataKey="tournees" fill="#228be6" name="Tournées" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-        ) : (
-            <Text c="dimmed" ta="center" pt={100}>Pas de données</Text>
-        )}
-
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={chartData}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="name" tick={{fontSize: 12}} />
+            <YAxis allowDecimals={false} />
+            <Tooltip />
+            <Bar dataKey="tournees" fill="#228be6" name="Tournées" radius={[4, 4, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
       </div>
     </Paper>
   );
