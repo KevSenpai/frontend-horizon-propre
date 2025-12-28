@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Modal, Button, TextInput, Select, MultiSelect, Stack, Group } from '@mantine/core';
+import { Modal, Button, TextInput, Select, MultiSelect, Stack, Group, Alert } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { api } from '../services/api';
 import LocationPicker from './LocationPicker';
-
+import { IconAlertCircle } from '@tabler/icons-react';
 interface Props {
   opened: boolean;
   close: () => void;
@@ -13,7 +13,7 @@ interface Props {
 export default function CreateClientModal({ opened, close, onSuccess }: Props) {
   const [loading, setLoading] = useState(false);
   const [gps, setGps] = useState<{ lat: number, lng: number } | null>(null);
-
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const form = useForm({
     initialValues: {
       name: '',
@@ -43,6 +43,8 @@ export default function CreateClientModal({ opened, close, onSuccess }: Props) {
     }
 
     setLoading(true);
+    setErrorMsg(null); // Reset erreur
+
     try {
       const payload = {
         ...values,
@@ -58,9 +60,16 @@ export default function CreateClientModal({ opened, close, onSuccess }: Props) {
       setGps(null);
       onSuccess();
       close();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erreur création client:", error);
-      alert("Erreur lors de la création (Vérifiez le numéro de téléphone unique)");
+      
+      // GESTION INTELLIGENTE DE L'ERREUR
+      if (error.response && error.response.status === 409) {
+         // C'est notre ConflictException du backend !
+         setErrorMsg(error.response.data.message);
+      } else {
+         setErrorMsg("Une erreur est survenue. Vérifiez votre connexion.");
+      }
     } finally {
       setLoading(false);
     }
@@ -70,6 +79,12 @@ export default function CreateClientModal({ opened, close, onSuccess }: Props) {
     <Modal opened={opened} onClose={close} title="Nouveau Client" size="lg" centered>
       <form onSubmit={form.onSubmit(handleSubmit)}>
         <Stack>
+          {/* ZONE D'ERREUR */}
+          {errorMsg && (
+               <Alert variant="light" color="red" title="Impossible de créer" icon={<IconAlertCircle />}>
+                {errorMsg}
+              </Alert>
+          )}
           <Group grow>
             <TextInput label="Nom complet" placeholder="Mme. Kavira" withAsterisk {...form.getInputProps('name')} />
             <TextInput label="Téléphone" placeholder="+243..." withAsterisk {...form.getInputProps('phone_number')} />

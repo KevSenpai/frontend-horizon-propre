@@ -4,6 +4,7 @@ import { IconUsers, IconTruck, IconMapPin, IconArrowRight, IconCalendarEvent } f
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 
+
 export default function DashboardPage() {
   const navigate = useNavigate();
   
@@ -16,7 +17,7 @@ export default function DashboardPage() {
   });
 
   const [loading, setLoading] = useState(true);
-
+  const [rawTours, setRawTours] = useState<any[]>([]);
   useEffect(() => {
     async function loadStats() {
       try {
@@ -40,6 +41,7 @@ export default function DashboardPage() {
           toursToday: toursToday,
           toursPlanned: toursPlanned
         });
+        setRawTours(toursRes.data);
       } catch (error) {
         console.error("Erreur chargement stats", error);
       } finally {
