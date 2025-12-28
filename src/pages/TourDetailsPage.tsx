@@ -200,7 +200,7 @@ export default function TourDetailsPage() {
                 {isEditable && <Button variant="light" color="violet" size="xs" leftSection={<IconBolt size={14}/>} onClick={handleAutoPlan}>Remplir Auto ⚡</Button>}
             </Group>
             <ScrollArea style={{ flex: 1 }}>
-              {availableClients.length === 0 && <Text c="dimmed" size="sm" align="center">Aucun client disponible.</Text>}
+              {availableClients.length === 0 && <Text c="dimmed" size="sm" ta="center">Aucun client disponible.</Text>}
               {availableClients.map(client => (
                 <Paper key={client.id} withBorder p="sm" mb="xs" shadow="none" bg={!isEditable ? 'gray.1' : 'white'}>
                   <Group justify="space-between">
@@ -228,7 +228,7 @@ export default function TourDetailsPage() {
               <Droppable droppableId="tour-list" isDropDisabled={!isEditable}> 
                 {(provided) => (
                   <ScrollArea style={{ flex: 1 }} {...provided.droppableProps} ref={provided.innerRef}>
-                    {tourClients.length === 0 && <Text c="dimmed" align="center" mt="xl">Tournée vide</Text>}
+                    {tourClients.length === 0 && <Text c="dimmed" ta="center" mt="xl">Tournée vide</Text>}
                     {tourClients.map((tc: any, index: number) => {
                       const isDone = tc.lastStatus === 'COMPLETED';
                       return (
