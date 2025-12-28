@@ -4,6 +4,7 @@ import { Container, Grid, Paper, Title, Text, Button, Group, Badge, ActionIcon, 
 import { IconArrowLeft, IconPlus, IconTrash, IconGripVertical, IconCheck, IconX, IconBolt } from '@tabler/icons-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { api } from '../services/api';
+import { IconPrinter } from '@tabler/icons-react';
 
 export default function TourDetailsPage() {
   const { id } = useParams();
@@ -16,7 +17,11 @@ export default function TourDetailsPage() {
 
   // Helper pour savoir si on peut modifier la tournée
   const isEditable = tour?.status === 'DRAFT';
-
+  const handleDownloadPdf = () => {
+    // Astuce : On ouvre l'URL du backend dans un nouvel onglet, le navigateur gère le téléchargement
+    const pdfUrl = `${api.defaults.baseURL}/tours/${id}/pdf`;
+    window.open(pdfUrl, '_blank');
+  };
   // 1. Chargement des données
   const loadData = async () => {
     if (!id) return;
@@ -147,7 +152,10 @@ export default function TourDetailsPage() {
             <Badge size="xl" variant="light" color={getStatusColor(tour.status)}>
                 {tour.status}
             </Badge>
-
+            {/* BOUTON IMPRIMER */}
+            <Button variant="default" leftSection={<IconPrinter size={16}/>} onClick={handleDownloadPdf}>
+                Imprimer
+            </Button>
             {/* Boutons d'action conditionnels */}
             {tour.status === 'DRAFT' && (
                 <Button color="green" leftSection={<IconCheck size={16}/>} onClick={() => changeStatus('PLANNED')}>
