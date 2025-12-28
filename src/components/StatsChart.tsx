@@ -61,19 +61,29 @@ export default function StatsChart({ data }: Props) {
       );
   }
 
+  // ...
   return (
     <Paper withBorder p="md" radius="md" mt="lg" shadow="xs">
       <Title order={4} mb="md">Activité de la semaine (Tournées)</Title>
-      <div style={{ width: '100%', height: 300 }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="name" tick={{fontSize: 12}} />
-            <YAxis allowDecimals={false} />
-            <Tooltip />
-            <Bar dataKey="tournees" fill="#228be6" name="Tournées" radius={[4, 4, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
+      
+      {/* CORRECTION ICI : On force une hauteur minimale */}
+      <div style={{ width: '100%', height: 300, minHeight: 300 }}>
+        
+        {/* On ajoute une condition pour ne rendre que si on a des données */}
+        {chartData.length > 0 ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" tick={{fontSize: 12}} />
+                <YAxis allowDecimals={false} />
+                <Tooltip />
+                <Bar dataKey="tournees" fill="#228be6" name="Tournées" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+        ) : (
+            <Text c="dimmed" ta="center" pt={100}>Pas de données</Text>
+        )}
+
       </div>
     </Paper>
   );
