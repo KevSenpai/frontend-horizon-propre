@@ -63,12 +63,17 @@ export default function CreateClientModal({ opened, close, onSuccess }: Props) {
     } catch (error: any) {
       console.error("Erreur création client:", error);
       
-      // GESTION INTELLIGENTE DE L'ERREUR
-      if (error.response && error.response.status === 409) {
-         // C'est notre ConflictException du backend !
-         setErrorMsg(error.response.data.message);
+      // On récupère le statut et le message si disponibles
+      const status = error.response?.status;
+      const backendMessage = error.response?.data?.message;
+
+      if (status === 409) {
+        setErrorMsg("Ce numéro de téléphone existe déjà !");
+      } else if (status === 500) {
+        // C'est ici que vous tombez actuellement
+        setErrorMsg(`Erreur Serveur (500). Détail : ${backendMessage || 'Erreur interne'}`);
       } else {
-         setErrorMsg("Une erreur est survenue. Vérifiez votre connexion.");
+        setErrorMsg("Impossible de joindre le serveur ou erreur réseau.");
       }
     } finally {
       setLoading(false);
