@@ -1,9 +1,8 @@
 import axios from 'axios';
 
-// 1. On déclare la constante EN DEHORS de l'objet
-const API_URL = 'https://horizon-api.onrender.com';
+// L'URL EXACTE trouvée dans vos logs Render
+const API_URL = 'https://horizon-api-y8nb.onrender.com'; 
 
-// 2. On utilise la constante dedans
 export const api = axios.create({
   baseURL: API_URL,
   headers: {
