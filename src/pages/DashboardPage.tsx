@@ -8,27 +8,25 @@ import StatsChart from '../components/StatsChart';
 export default function DashboardPage() {
   const navigate = useNavigate();
   
-  // États pour les statistiques
   const [stats, setStats] = useState({
     totalClients: 0,
     activeTeams: 0,
     toursToday: 0,
     toursPlanned: 0
   });
-
+  
+  const [allTours, setAllTours] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [rawTours, setRawTours] = useState<any[]>([]);
+
   useEffect(() => {
     async function loadStats() {
       try {
-        // On lance les 3 requêtes en parallèle pour aller vite
         const [clientsRes, teamsRes, toursRes] = await Promise.all([
           api.get('/clients'),
           api.get('/teams'),
           api.get('/tours')
         ]);
 
-        // Calculs simples
         const today = new Date().toISOString().split('T')[0];
         
         const toursToday = toursRes.data.filter((t: any) => t.tour_date === today).length;
@@ -41,7 +39,8 @@ export default function DashboardPage() {
           toursToday: toursToday,
           toursPlanned: toursPlanned
         });
-        setRawTours(toursRes.data);
+
+        setAllTours(toursRes.data);
       } catch (error) {
         console.error("Erreur chargement stats", error);
       } finally {
@@ -52,7 +51,6 @@ export default function DashboardPage() {
     loadStats();
   }, []);
 
-  // Composant pour une carte de Statistique
   function StatCard({ title, value, icon, color, description }: any) {
     return (
       <Paper withBorder p="md" radius="md" shadow="xs">
@@ -87,7 +85,7 @@ export default function DashboardPage() {
       </Group>
 
       {/* 1. LES CHIFFRES CLÉS */}
-      <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md" mb="xl">
+      <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md" mb="lg">
         <StatCard 
           title="Tournées Aujourd'hui" 
           value={stats.toursToday} 
@@ -111,8 +109,13 @@ export default function DashboardPage() {
         />
       </SimpleGrid>
 
+      {/* 2. LE GRAPHIQUE (DÉPLACÉ ICI POUR ÊTRE VISIBLE) */}
+      <div style={{ marginBottom: '20px' }}>
+         <StatsChart data={allTours} />
+      </div>
+
       <Grid>
-        {/* 2. SECTION ACTIONS RAPIDES */}
+        {/* 3. SECTION ACTIONS RAPIDES */}
         <Grid.Col span={{ base: 12, md: 7 }}>
           <Paper withBorder p="md" radius="md" h="100%">
             <Title order={4} mb="md">Actions Rapides</Title>
@@ -125,7 +128,7 @@ export default function DashboardPage() {
                     justify="space-between"
                     rightSection={<IconArrowRight size={16} />}
                 >
-                    Planifier une tournée
+                    Planifier
                 </Button>
                 
                 <Button 
@@ -137,13 +140,13 @@ export default function DashboardPage() {
                     justify="space-between"
                     rightSection={<IconArrowRight size={16} />}
                 >
-                    Ajouter un client
+                    Nouveau Client
                 </Button>
             </SimpleGrid>
           </Paper>
         </Grid.Col>
 
-        {/* 3. SECTION STATUT GLOBAL */}
+        {/* 4. SECTION STATUT GLOBAL */}
         <Grid.Col span={{ base: 12, md: 5 }}>
             <Paper withBorder p="md" radius="md" h="100%">
                 <Title order={4} mb="md">État du Planning</Title>
@@ -154,7 +157,7 @@ export default function DashboardPage() {
                         roundCaps
                         label={
                             <Text size="xs" ta="center" c="dimmed">
-                                En attente de<br />Validation
+                                Taux de<br />Validation
                             </Text>
                         }
                         sections={[
