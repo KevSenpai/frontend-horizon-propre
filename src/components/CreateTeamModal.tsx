@@ -1,19 +1,17 @@
-import React from 'react'; 
+import React, { useState } from 'react';
 import { Modal, Button, TextInput, Select, Group, Stack } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { useState } from 'react';
 import { api } from '../services/api';
 
 interface Props {
   opened: boolean;
   close: () => void;
-  onSuccess: () => void; // Fonction appelée quand l'équipe est créée pour rafraîchir la liste
+  onSuccess: () => void;
 }
 
 export default function CreateTeamModal({ opened, close, onSuccess }: Props) {
   const [loading, setLoading] = useState(false);
 
-  // Configuration du formulaire avec Mantine Form
   const form = useForm({
     initialValues: {
       name: '',
@@ -21,24 +19,20 @@ export default function CreateTeamModal({ opened, close, onSuccess }: Props) {
       status: 'ACTIVE',
     },
     validate: {
-      name: (value) => (value.length < 2 ? 'Le nom doit avoir au moins 2 caractères' : null),
+      // AJOUT DE ": string"
+      name: (value: string) => (value.length < 2 ? 'Le nom doit avoir au moins 2 caractères' : null),
     },
   });
 
-  // Fonction d'envoi
   const handleSubmit = async (values: typeof form.values) => {
     setLoading(true);
     try {
-      // Appel au Backend
       await api.post('/teams', values);
-      
-      // Si succès :
-      form.reset(); // On vide le formulaire
-      onSuccess();  // On dit au parent de rafraîchir la liste
-      close();      // On ferme la modale
+      form.reset();
+      onSuccess();
+      close();
     } catch (error) {
       console.error("Erreur création équipe:", error);
-      // Ici on pourrait ajouter une notification d'erreur plus tard
     } finally {
       setLoading(false);
     }

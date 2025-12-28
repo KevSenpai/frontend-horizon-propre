@@ -27,10 +27,12 @@ export default function CreateClientModal({ opened, close, onSuccess }: Props) {
       collection_days: [],
     },
     validate: {
-      name: (val) => (val.length < 2 ? 'Nom trop court' : null),
-      phone_number: (val) => (val.length < 5 ? 'Numéro invalide' : null),
-      district: (val) => (val.length < 2 ? 'Quartier requis' : null),
-      collection_days: (val) => (val.length === 0 ? 'Choisir au moins un jour' : null),
+      // TYPAGE EXPLICITE ICI
+      name: (val: string) => (val.length < 2 ? 'Nom trop court' : null),
+      phone_number: (val: string) => (val.length < 5 ? 'Numéro invalide' : null),
+      district: (val: string) => (val.length < 2 ? 'Quartier requis' : null),
+      // Ici val est un tableau de strings
+      collection_days: (val: string[]) => (val.length === 0 ? 'Choisir au moins un jour' : null),
     },
   });
 
@@ -42,12 +44,11 @@ export default function CreateClientModal({ opened, close, onSuccess }: Props) {
 
     setLoading(true);
     try {
-      // Construction de l'objet pour le Backend
       const payload = {
         ...values,
         location: {
           type: 'Point',
-          coordinates: [gps.lat, gps.lng], // Attention l'ordre peut varier selon les systèmes, ici on tente Lat/Lng standard
+          coordinates: [gps.lat, gps.lng],
         },
         location_status: 'VERIFIED'
       };
@@ -81,7 +82,6 @@ export default function CreateClientModal({ opened, close, onSuccess }: Props) {
             <TextInput label="Quartier" withAsterisk {...form.getInputProps('district')} />
           </Group>
 
-          {/* LA CARTE */}
           <LocationPicker onLocationSelect={(lat, lng) => setGps({ lat, lng })} />
 
           <Group grow>

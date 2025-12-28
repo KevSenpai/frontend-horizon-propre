@@ -15,29 +15,27 @@ export default function CreateTourModal({ opened, close, onSuccess }: Props) {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   
-  // États pour les listes déroulantes
   const [teams, setTeams] = useState<{value: string, label: string}[]>([]);
   const [vehicles, setVehicles] = useState<{value: string, label: string}[]>([]);
 
   const form = useForm({
     initialValues: {
       name: '',
-      tour_date: new Date(), // Important : Initialiser avec un objet Date
+      tour_date: new Date(),
       team_id: '',
       vehicle_id: '',
     },
     validate: {
-      name: (val) => (val.length < 2 ? 'Nom requis' : null),
-      team_id: (val) => (!val ? 'Équipe requise' : null),
-      vehicle_id: (val) => (!val ? 'Véhicule requis' : null),
+      // TYPAGE EXPLICITE ICI
+      name: (val: string) => (val.length < 2 ? 'Nom requis' : null),
+      team_id: (val: string) => (!val ? 'Équipe requise' : null),
+      vehicle_id: (val: string) => (!val ? 'Véhicule requis' : null),
     },
   });
 
-  // Charger les équipes et véhicules quand la modale s'ouvre
   useEffect(() => {
     if (opened) {
-      setErrorMsg(null); // Reset erreur à l'ouverture
-      
+      setErrorMsg(null);
       api.get('/teams').then(res => {
         const activeTeams = res.data
           .filter((t: any) => t.status === 'ACTIVE')
@@ -54,9 +52,7 @@ export default function CreateTourModal({ opened, close, onSuccess }: Props) {
     }
   }, [opened]);
 
-  // Fonction de soumission (Corrigée et Sécurisée)
   const handleSubmit = async (values: typeof form.values) => {
-    // 1. Validation de sécurité pour la date
     if (!values.tour_date) {
         alert("Veuillez sélectionner une date valide.");
         return;
@@ -66,27 +62,21 @@ export default function CreateTourModal({ opened, close, onSuccess }: Props) {
     setErrorMsg(null);
     
     try {
-      // 2. Conversion sécurisée en objet Date
       const safeDate = new Date(values.tour_date);
-      
       const payload = {
         ...values,
-        // On formate en string YYYY-MM-DD pour le backend
         tour_date: safeDate.toISOString().split('T')[0]
       };
 
       await api.post('/tours', payload);
       
-      // Reset du formulaire
       form.reset();
-      form.setFieldValue('tour_date', new Date()); // Remettre la date du jour
+      form.setFieldValue('tour_date', new Date());
       
       onSuccess();
       close();
     } catch (error: any) {
       console.error("Erreur création tournée:", error);
-      
-      // Gestion spécifique du conflit 409
       if (error.response && error.response.status === 409) {
         setErrorMsg("Conflit : Cette équipe ou ce véhicule est déjà pris à cette date !");
       } else {
@@ -101,7 +91,6 @@ export default function CreateTourModal({ opened, close, onSuccess }: Props) {
     <Modal opened={opened} onClose={close} title="Planifier une Tournée" centered>
       <form onSubmit={form.onSubmit(handleSubmit)}>
         <Stack>
-          {/* Zone d'affichage des erreurs */}
           {errorMsg && (
             <Alert variant="light" color="red" title="Erreur" icon={<IconAlertCircle />}>
               {errorMsg}
@@ -120,9 +109,9 @@ export default function CreateTourModal({ opened, close, onSuccess }: Props) {
             label="Date de la tournée"
             placeholder="Choisir une date"
             withAsterisk
-            // On force la valeur à être gérée comme une Date par le composant
             value={form.values.tour_date}
-            onChange={(date) => form.setFieldValue('tour_date', date)}
+            // CORRECTION: On vérifie que 'date' n'est pas null avant de l'envoyer
+            onChange={(date) => date && form.setFieldValue('tour_date', date)}
             error={form.errors.tour_date}
           />
 
