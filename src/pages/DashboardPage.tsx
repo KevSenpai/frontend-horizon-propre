@@ -3,7 +3,7 @@ import { Container, Grid, Paper, Text, Group, Title, ThemeIcon, SimpleGrid, Butt
 import { IconUsers, IconTruck, IconMapPin, IconArrowRight, IconCalendarEvent } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
-
+import StatsChart from '../components/StatsChart';
 
 export default function DashboardPage() {
   const navigate = useNavigate();
