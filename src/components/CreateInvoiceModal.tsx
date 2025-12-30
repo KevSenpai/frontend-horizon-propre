@@ -30,27 +30,36 @@ export default function CreateInvoiceModal({ opened, close, onSuccess }: Props) 
   const form = useForm({
     initialValues: {
       client_id: '',
-      amount: 10, // Montant par défaut (ex: 10$)
-      period: new Date().toISOString().slice(0, 7), // "YYYY-MM" par défaut
+      amount: 10,
+      period: new Date().toISOString().slice(0, 7), // "YYYY-MM"
       due_date: new Date(),
     },
     validate: {
-      client_id: (val) => (!val ? 'Client requis' : null),
-      amount: (val) => (val <= 0 ? 'Montant invalide' : null),
-      period: (val) => (val.length < 4 ? 'Période requise' : null),
+      // CORRECTION ICI : On ajoute les types explicites
+      client_id: (val: string) => (!val ? 'Client requis' : null),
+      amount: (val: number) => (val <= 0 ? 'Montant invalide' : null),
+      period: (val: string) => (val.length < 4 ? 'Période requise' : null),
     },
   });
 
   const handleSubmit = async (values: typeof form.values) => {
+    // Sécurité supplémentaire pour la date
+    if (!values.due_date) {
+        return;
+    }
+
     setLoading(true);
     try {
       await api.post('/invoices', {
         ...values,
-        // Conversion de la date pour le backend
+        // Conversion sécurisée de la date
         due_date: values.due_date.toISOString().split('T')[0]
       });
       
       form.reset();
+      // On remet une date par défaut pour éviter les bugs au prochain tour
+      form.setFieldValue('due_date', new Date());
+      
       onSuccess();
       close();
     } catch (error) {
