@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Container, Title, Paper, Table, Badge, Group, Button, Text } from '@mantine/core';
+import { Container, Title, Paper, Table, Badge, Group, Button, Text, LoadingOverlay } from '@mantine/core';
 import { IconPlus, IconCurrencyDollar } from '@tabler/icons-react';
 import { useDisclosure } from '@mantine/hooks';
 import { api } from '../services/api';
@@ -13,11 +13,19 @@ export default function FinancePage() {
   const fetchInvoices = async () => {
     try {
       const res = await api.get('/invoices');
-      // Tri par date de création (plus récent en haut)
-      const sorted = res.data.sort((a: any, b: any) => 
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      );
-      setInvoices(sorted);
+      console.log("Réponse API Factures:", res.data); // Pour le debug
+
+      // CORRECTION : On vérifie si c'est bien un tableau avant de trier
+      if (Array.isArray(res.data)) {
+        const sorted = res.data.sort((a: any, b: any) => 
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+        setInvoices(sorted);
+      } else {
+        console.error("Format de réponse inattendu (pas un tableau):", res.data);
+        setInvoices([]); // On met une liste vide par sécurité
+      }
+
     } catch (error) {
       console.error("Erreur chargement factures", error);
     } finally {
@@ -51,7 +59,6 @@ export default function FinancePage() {
         </Badge>
       </Table.Td>
       <Table.Td>
-        {/* Ici on mettra plus tard le bouton "Encaisser un paiement" */}
         {inv.status === 'PENDING' && (
             <Button size="xs" variant="subtle" color="green">Encaisser</Button>
         )}
@@ -68,7 +75,9 @@ export default function FinancePage() {
         </Button>
       </Group>
 
-      <Paper shadow="xs" p="md" withBorder>
+      <Paper shadow="xs" p="md" withBorder style={{ position: 'relative', minHeight: 200 }}>
+        <LoadingOverlay visible={loading} />
+        
         <Table striped highlightOnHover>
           <Table.Thead>
             <Table.Tr>
@@ -80,9 +89,11 @@ export default function FinancePage() {
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
-            {loading ? <Table.Tr><Table.Td colSpan={5} align="center">Chargement...</Table.Td></Table.Tr> : rows}
+            {rows}
             {!loading && invoices.length === 0 && (
-                 <Table.Tr><Table.Td colSpan={5} align="center" c="dimmed" py="xl">Aucune facture émise.</Table.Td></Table.Tr>
+                 <Table.Tr><Table.Td colSpan={5} align="center">
+                    <Text c="dimmed" py="xl">Aucune facture émise.</Text>
+                 </Table.Td></Table.Tr>
             )}
           </Table.Tbody>
         </Table>
