@@ -71,7 +71,7 @@ export default function StatsChart({ data }: Props) {
       <Title order={4} mb="md">Activité de la semaine</Title>
       
       {/* On utilise une div conteneur avec des styles explicites */}
-      <div style={{ position: 'relative', width: '100%', height: 300 }}>
+      <div style={{ position: 'relative', width: '100%', height: 300, minWidth: 300 }}>
         {chartData.length > 0 ? (
             <ResponsiveContainer width="99%" height="100%">
               <BarChart data={chartData}>
