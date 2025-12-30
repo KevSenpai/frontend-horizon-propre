@@ -13,6 +13,8 @@ import TourDetailsPage from './pages/TourDetailsPage';
 import DashboardPage from './pages/DashboardPage';
 import HistoryPage from './pages/HistoryPage';
 import { IconHistory } from '@tabler/icons-react';
+import FinancePage from './pages/FinancePage';
+import { IconCurrencyDollar } from '@tabler/icons-react';
 export default function App() {
   const [opened, { toggle }] = useDisclosure();
   const navigate = useNavigate();
@@ -25,6 +27,7 @@ export default function App() {
     { label: 'Véhicules', icon: IconTruck, path: '/vehicles' },
     { label: 'Planification', icon: IconMapPin, path: '/planning' },
     { label: 'Historique', icon: IconHistory, path: '/history' },
+    { label: 'Finance', icon: IconCurrencyDollar, path: '/finance' },
   ];
 
   return (
@@ -65,6 +68,7 @@ export default function App() {
           <Route path="/planning" element={<ToursPage />} />
           <Route path="/planning/:id" element={<TourDetailsPage />} />
           <Route path="/history" element={<HistoryPage />} />
+          <Route path="/finance" element={<FinancePage />} />
         </Routes>
       </AppShell.Main>
     </AppShell>
