@@ -1,118 +1,109 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Title, Container, Badge, Group, Button, Paper, Text, ActionIcon } from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
-import { IconPlus, IconUsers, IconPencil, IconTrash } from '@tabler/icons-react';
+import { Modal, Button, TextInput, Select, Group, Stack } from '@mantine/core';
+import { useForm } from '@mantine/form';
 import { api } from '../services/api';
-import CreateTeamModal from '../components/CreateTeamModal';
 
-interface Team {
-  id: string;
-  name: string;
-  members_info: string;
-  status: 'ACTIVE' | 'INACTIVE';
+interface Props {
+  opened: boolean;
+  close: () => void;
+  onSuccess: () => void;
+  // C'est cette ligne qui manquait pour que TypeScript soit content :
+  teamToEdit?: any | null; 
 }
 
-export default function TeamsPage() {
-  const [teams, setTeams] = useState<Team[]>([]);
-  const [loading, setLoading] = useState(true);
-  
-  // État pour stocker l'équipe en cours d'édition
-  const [teamToEdit, setTeamToEdit] = useState<Team | null>(null);
-  const [opened, { open, close }] = useDisclosure(false);
+export default function CreateTeamModal({ opened, close, onSuccess, teamToEdit }: Props) {
+  const [loading, setLoading] = useState(false);
 
-  const fetchTeams = async () => {
+  const form = useForm({
+    initialValues: {
+      name: '',
+      members_info: '',
+      status: 'ACTIVE',
+    },
+    validate: {
+      name: (value: string) => (value.length < 2 ? 'Le nom doit avoir au moins 2 caractères' : null),
+    },
+  });
+
+  // Effet pour pré-remplir le formulaire en mode édition
+  useEffect(() => {
+    if (opened) {
+      if (teamToEdit) {
+        // Mode ÉDITION
+        form.setValues({
+          name: teamToEdit.name,
+          members_info: teamToEdit.members_info || '',
+          status: teamToEdit.status,
+        });
+      } else {
+        // Mode CRÉATION
+        form.reset();
+      }
+    }
+  }, [opened, teamToEdit]);
+
+  const handleSubmit = async (values: typeof form.values) => {
     setLoading(true);
     try {
-      const response = await api.get('/teams');
-      setTeams(response.data);
+      if (teamToEdit) {
+        // UPDATE (PATCH)
+        await api.patch(`/teams/${teamToEdit.id}`, values);
+      } else {
+        // CREATE (POST)
+        await api.post('/teams', values);
+      }
+      
+      form.reset();
+      onSuccess();
+      close();
     } catch (error) {
-      console.error("Erreur:", error);
+      console.error("Erreur sauvegarde équipe:", error);
+      alert("Erreur lors de la sauvegarde.");
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { fetchTeams(); }, []);
-
-  // Ouvrir la modale en mode Création
-  const handleCreate = () => {
-    setTeamToEdit(null);
-    open();
-  };
-
-  // Ouvrir la modale en mode Édition
-  const handleEdit = (team: Team) => {
-    setTeamToEdit(team);
-    open();
-  };
-
-  // Supprimer
-  const handleDelete = async (id: string) => {
-    if(!confirm("Supprimer cette équipe ?")) return;
-    try {
-      await api.delete(`/teams/${id}`);
-      fetchTeams();
-    } catch (e) { alert("Erreur suppression"); }
-  };
-
-  const rows = teams.map((team) => (
-    <Table.Tr key={team.id}>
-      <Table.Td>
-        <Group gap="sm">
-          <IconUsers size={16} color="gray" />
-          <Text fw={500}>{team.name}</Text>
-        </Group>
-      </Table.Td>
-      <Table.Td>{team.members_info}</Table.Td>
-      <Table.Td>
-        <Badge color={team.status === 'ACTIVE' ? 'green' : 'gray'} variant="light">
-          {team.status}
-        </Badge>
-      </Table.Td>
-      <Table.Td>
-        <Group gap="xs">
-            <ActionIcon variant="subtle" color="blue" onClick={() => handleEdit(team)}>
-                <IconPencil size={16} />
-            </ActionIcon>
-            <ActionIcon variant="subtle" color="red" onClick={() => handleDelete(team.id)}>
-                <IconTrash size={16} />
-            </ActionIcon>
-        </Group>
-      </Table.Td>
-    </Table.Tr>
-  ));
-
   return (
-    <Container size="xl" py="xl">
-      <Group justify="space-between" mb="lg">
-        <Title order={2}>Équipes</Title>
-        <Button leftSection={<IconPlus size={14} />} onClick={handleCreate}>
-          Nouvelle Équipe
-        </Button>
-      </Group>
+    <Modal 
+      opened={opened} 
+      onClose={close} 
+      title={teamToEdit ? "Modifier l'équipe" : "Créer une équipe"} 
+      centered
+    >
+      <form onSubmit={form.onSubmit(handleSubmit)}>
+        <Stack>
+          <TextInput
+            label="Nom de l'équipe"
+            placeholder="Ex: Equipe Bravo"
+            withAsterisk
+            data-autofocus
+            {...form.getInputProps('name')}
+          />
 
-      <Paper shadow="xs" radius="md" withBorder>
-        <Table verticalSpacing="sm">
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th>Nom</Table.Th>
-              <Table.Th>Membres</Table.Th>
-              <Table.Th>Statut</Table.Th>
-              <Table.Th>Actions</Table.Th>
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {rows}
-          </Table.Tbody>
-        </Table>
-      </Paper>
+          <TextInput
+            label="Membres (Information)"
+            placeholder="Ex: Jean, Paul, Jacques"
+            {...form.getInputProps('members_info')}
+          />
 
-      <CreateTeamModal 
-        opened={opened} 
-        close={close} 
-        onSuccess={fetchTeams} 
-        teamToEdit={teamToEdit} 
-      />
-    </Container>
+          <Select
+            label="Statut"
+            data={[
+              { value: 'ACTIVE', label: 'Active' },
+              { value: 'INACTIVE', label: 'Inactive' },
+            ]}
+            {...form.getInputProps('status')}
+          />
+
+          <Group justify="flex-end" mt="md">
+            <Button variant="default" onClick={close}>Annuler</Button>
+            <Button type="submit" loading={loading}>
+              {teamToEdit ? "Enregistrer" : "Créer"}
+            </Button>
+          </Group>
+        </Stack>
+      </form>
+    </Modal>
   );
 }
