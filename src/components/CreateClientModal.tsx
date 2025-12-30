@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Modal, Button, TextInput, Select, MultiSelect, Stack, Group, Alert as MantineAlert } from '@mantine/core';
+import React, { useState, useEffect } from 'react';
+import { Modal, Button, TextInput, Select, MultiSelect, Stack, Group, Alert } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { api } from '../services/api';
@@ -9,9 +9,11 @@ interface Props {
   opened: boolean;
   close: () => void;
   onSuccess: () => void;
+  clientToEdit?: any | null; // <--- Défini ici
 }
 
-export default function CreateClientModal({ opened, close, onSuccess }: Props) {
+// CORRECTION ICI : On ajoute clientToEdit dans les paramètres
+export default function CreateClientModal({ opened, close, onSuccess, clientToEdit }: Props) {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [gps, setGps] = useState<{ lat: number, lng: number } | null>(null);
@@ -36,6 +38,39 @@ export default function CreateClientModal({ opened, close, onSuccess }: Props) {
     },
   });
 
+  // Effet pour remplir le formulaire en mode édition
+  useEffect(() => {
+    if (opened) {
+      setErrorMsg(null);
+      if (clientToEdit) {
+        // Mode ÉDITION : On remplit
+        form.setValues({
+          name: clientToEdit.name,
+          phone_number: clientToEdit.phone_number,
+          email: clientToEdit.email || '',
+          street_address: clientToEdit.street_address,
+          district: clientToEdit.district,
+          city: clientToEdit.city,
+          client_type: clientToEdit.client_type,
+          service_type: clientToEdit.service_type,
+          collection_days: clientToEdit.collection_days || [],
+        });
+        
+        // On remplit le GPS si dispo
+        if (clientToEdit.location && clientToEdit.location.coordinates) {
+             setGps({ 
+                lat: clientToEdit.location.coordinates[0], 
+                lng: clientToEdit.location.coordinates[1] 
+            });
+        }
+      } else {
+        // Mode CRÉATION : On vide
+        form.reset();
+        setGps(null);
+      }
+    }
+  }, [opened, clientToEdit]);
+
   const handleSubmit = async (values: typeof form.values) => {
     if (!gps) {
       alert("Veuillez sélectionner une position sur la carte !");
@@ -43,7 +78,7 @@ export default function CreateClientModal({ opened, close, onSuccess }: Props) {
     }
 
     setLoading(true);
-    setErrorMsg(null); // On efface les anciennes erreurs
+    setErrorMsg(null);
 
     try {
       const payload = {
@@ -55,63 +90,41 @@ export default function CreateClientModal({ opened, close, onSuccess }: Props) {
         location_status: 'VERIFIED'
       };
 
-      // Appel API
-      await api.post('/clients', payload);
+      // C'EST ICI QUE VOUS AVIEZ L'ERREUR
+      if (clientToEdit) {
+          // Si on édite, on fait un PATCH avec l'ID
+          await api.patch(`/clients/${clientToEdit.id}`, payload);
+      } else {
+          // Sinon on crée
+          await api.post('/clients', payload);
+      }
 
-      // Si on arrive ici, c'est un SUCCÈS
       form.reset();
       setGps(null);
       onSuccess();
       close();
 
     } catch (error: any) {
-      console.error("ERREUR DANS LA MODALE :", error);
-
-      // 1. Déterminer le message d'erreur
-      let message = "Une erreur inconnue est survenue.";
-
-      if (error.response) {
-        // Le serveur a répondu avec une erreur (4xx, 5xx)
-        const status = error.response.status;
-        const data = error.response.data;
-        
-        console.log("Status:", status, "Data:", data);
-
-        if (status === 409) {
-          message = "Ce numéro de téléphone existe déjà !";
-        } else if (status === 500) {
-           // Si le backend renvoie un message spécifique dans 'message'
-           message = data.message || "Erreur interne du serveur (500).";
-        } else {
-           message = `Erreur (${status}): ${data.message || 'Problème serveur'}`;
-        }
-      } else if (error.request) {
-        // La requête est partie mais pas de réponse (problème réseau)
-        message = "Impossible de contacter le serveur. Vérifiez votre connexion.";
+      console.error("Erreur client:", error);
+      const status = error.response?.status;
+      if (status === 409) {
+          setErrorMsg("Ce numéro de téléphone existe déjà !");
       } else {
-        message = error.message;
+          setErrorMsg("Une erreur est survenue.");
       }
-
-      // 2. Mettre à jour l'affichage dans la modale
-      setErrorMsg(message);
-      
-      // 3. FORCE BRUTE : Afficher une alerte navigateur pour être sûr que vous le voyez
-      window.alert("ERREUR : " + message);
-
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Modal opened={opened} onClose={close} title="Nouveau Client" size="lg" centered>
+    <Modal opened={opened} onClose={close} title={clientToEdit ? "Modifier le client" : "Nouveau Client"} size="lg" centered>
       <form onSubmit={form.onSubmit(handleSubmit)}>
         <Stack>
-          {/* Zone d'affichage de l'erreur (Bandeau Rouge) */}
           {errorMsg && (
-            <MantineAlert variant="light" color="red" title="Attention" icon={<IconAlertCircle />}>
+            <Alert variant="light" color="red" title="Erreur" icon={<IconAlertCircle />}>
               {errorMsg}
-            </MantineAlert>
+            </Alert>
           )}
 
           <Group grow>
@@ -150,7 +163,7 @@ export default function CreateClientModal({ opened, close, onSuccess }: Props) {
 
           <Group justify="flex-end" mt="md">
             <Button variant="default" onClick={close}>Annuler</Button>
-            <Button type="submit" loading={loading}>Enregistrer le client</Button>
+            <Button type="submit" loading={loading}>{clientToEdit ? "Sauvegarder" : "Créer"}</Button>
           </Group>
         </Stack>
       </form>
