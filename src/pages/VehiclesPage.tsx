@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Title, Container, Badge, Group, Button, Paper, Text } from '@mantine/core';
+import { Table, Title, Container, Badge, Group, Button, Paper, Text, ActionIcon } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconPlus, IconTruck } from '@tabler/icons-react';
+import { IconPlus, IconTruck, IconPencil, IconTrash } from '@tabler/icons-react';
 import { api } from '../services/api';
 import CreateVehicleModal from '../components/CreateVehicleModal';
 
@@ -15,6 +15,7 @@ interface Vehicle {
 export default function VehiclesPage() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
+  const [vehicleToEdit, setVehicleToEdit] = useState<Vehicle | null>(null); // État édition
   const [opened, { open, close }] = useDisclosure(false);
 
   const fetchVehicles = async () => {
@@ -29,9 +30,15 @@ export default function VehiclesPage() {
     }
   };
 
-  useEffect(() => {
-    fetchVehicles();
-  }, []);
+  useEffect(() => { fetchVehicles(); }, []);
+
+  // Gestion Création / Édition / Suppression
+  const handleCreate = () => { setVehicleToEdit(null); open(); };
+  const handleEdit = (vehicle: Vehicle) => { setVehicleToEdit(vehicle); open(); };
+  const handleDelete = async (id: string) => {
+    if(!confirm("Supprimer ce véhicule ?")) return;
+    try { await api.delete(`/vehicles/${id}`); fetchVehicles(); } catch(e) { alert("Erreur"); }
+  };
 
   const rows = vehicles.map((vehicle) => (
     <Table.Tr key={vehicle.id}>
@@ -50,6 +57,16 @@ export default function VehiclesPage() {
           {vehicle.status}
         </Badge>
       </Table.Td>
+      <Table.Td>
+        <Group gap="xs">
+            <ActionIcon variant="subtle" color="blue" onClick={() => handleEdit(vehicle)}>
+                <IconPencil size={16} />
+            </ActionIcon>
+            <ActionIcon variant="subtle" color="red" onClick={() => handleDelete(vehicle.id)}>
+                <IconTrash size={16} />
+            </ActionIcon>
+        </Group>
+      </Table.Td>
     </Table.Tr>
   ));
 
@@ -60,33 +77,34 @@ export default function VehiclesPage() {
           <Title order={2}>Véhicules</Title>
           <Text c="dimmed">Gérez la flotte de camions</Text>
         </div>
-        <Button leftSection={<IconPlus size={14} />} onClick={open}>
+        <Button leftSection={<IconPlus size={14} />} onClick={handleCreate}>
           Nouveau Véhicule
         </Button>
       </Group>
 
       <Paper shadow="xs" radius="md" withBorder>
-        <Table verticalSpacing="sm" striped highlightOnHover>
+        <Table verticalSpacing="sm">
           <Table.Thead>
             <Table.Tr>
               <Table.Th>Nom / Modèle</Table.Th>
               <Table.Th>Immatriculation</Table.Th>
               <Table.Th>Statut</Table.Th>
+              <Table.Th>Actions</Table.Th>
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
-            {loading ? (
-              <Table.Tr><Table.Td colSpan={3} align="center">Chargement...</Table.Td></Table.Tr>
-            ) : rows}
+            {loading ? <Table.Tr><Table.Td colSpan={4} align="center">Chargement...</Table.Td></Table.Tr> : rows}
           </Table.Tbody>
         </Table>
-        
-        {!loading && vehicles.length === 0 && (
-          <Text ta="center" py="xl" c="dimmed">Aucun véhicule trouvé.</Text>
-        )}
+        {!loading && vehicles.length === 0 && <Text ta="center" py="xl" c="dimmed">Aucun véhicule trouvé.</Text>}
       </Paper>
 
-      <CreateVehicleModal opened={opened} close={close} onSuccess={fetchVehicles} />
+      <CreateVehicleModal 
+        opened={opened} 
+        close={close} 
+        onSuccess={fetchVehicles} 
+        vehicleToEdit={vehicleToEdit} // On passe l'info à la modale
+      />
     </Container>
   );
 }

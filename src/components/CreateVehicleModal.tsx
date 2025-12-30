@@ -7,7 +7,7 @@ interface Props {
   opened: boolean;
   close: () => void;
   onSuccess: () => void;
-  vehicleToEdit?: any | null; // <--- AJOUT
+  vehicleToEdit?: any | null; // <--- AJOUT PROPS
 }
 
 export default function CreateVehicleModal({ opened, close, onSuccess, vehicleToEdit }: Props) {
@@ -25,6 +25,7 @@ export default function CreateVehicleModal({ opened, close, onSuccess, vehicleTo
     },
   });
 
+  // Pré-remplissage en mode édition
   useEffect(() => {
     if (opened) {
       if (vehicleToEdit) {
@@ -43,8 +44,10 @@ export default function CreateVehicleModal({ opened, close, onSuccess, vehicleTo
     setLoading(true);
     try {
       if (vehicleToEdit) {
+        // UPDATE
         await api.patch(`/vehicles/${vehicleToEdit.id}`, values);
       } else {
+        // CREATE
         await api.post('/vehicles', values);
       }
       form.reset();
@@ -52,25 +55,50 @@ export default function CreateVehicleModal({ opened, close, onSuccess, vehicleTo
       close();
     } catch (error) {
       console.error("Erreur véhicule:", error);
+      alert("Erreur lors de l'enregistrement.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Modal opened={opened} onClose={close} title={vehicleToEdit ? "Modifier véhicule" : "Nouveau véhicule"} centered>
+    <Modal 
+      opened={opened} 
+      onClose={close} 
+      title={vehicleToEdit ? "Modifier le véhicule" : "Ajouter un véhicule"} 
+      centered
+    >
       <form onSubmit={form.onSubmit(handleSubmit)}>
         <Stack>
-          <TextInput label="Nom" withAsterisk {...form.getInputProps('name')} />
-          <TextInput label="Plaque" withAsterisk {...form.getInputProps('license_plate')} />
+          <TextInput
+            label="Nom du véhicule"
+            placeholder="Ex: Camion Benne 01"
+            withAsterisk
+            data-autofocus
+            {...form.getInputProps('name')}
+          />
+
+          <TextInput
+            label="Plaque d'immatriculation"
+            placeholder="Ex: CGO-1234-AB"
+            withAsterisk
+            {...form.getInputProps('license_plate')}
+          />
+
           <Select
             label="Statut"
-            data={[{ value: 'OPERATIONAL', label: 'Opérationnel' }, { value: 'MAINTENANCE', label: 'Maintenance' }]}
+            data={[
+              { value: 'OPERATIONAL', label: 'Opérationnel' },
+              { value: 'MAINTENANCE', label: 'En Maintenance' },
+            ]}
             {...form.getInputProps('status')}
           />
+
           <Group justify="flex-end" mt="md">
             <Button variant="default" onClick={close}>Annuler</Button>
-            <Button type="submit" loading={loading}>{vehicleToEdit ? "Sauvegarder" : "Créer"}</Button>
+            <Button type="submit" loading={loading}>
+              {vehicleToEdit ? "Sauvegarder" : "Créer"}
+            </Button>
           </Group>
         </Stack>
       </form>

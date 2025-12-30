@@ -9,10 +9,9 @@ interface Props {
   opened: boolean;
   close: () => void;
   onSuccess: () => void;
-  clientToEdit?: any | null; // <--- Défini ici
+  clientToEdit?: any | null; // <--- AJOUT PROPS
 }
 
-// CORRECTION ICI : On ajoute clientToEdit dans les paramètres
 export default function CreateClientModal({ opened, close, onSuccess, clientToEdit }: Props) {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -38,12 +37,12 @@ export default function CreateClientModal({ opened, close, onSuccess, clientToEd
     },
   });
 
-  // Effet pour remplir le formulaire en mode édition
+  // PRÉ-REMPLISSAGE (Formulaire + GPS)
   useEffect(() => {
     if (opened) {
       setErrorMsg(null);
       if (clientToEdit) {
-        // Mode ÉDITION : On remplit
+        // Mode ÉDITION
         form.setValues({
           name: clientToEdit.name,
           phone_number: clientToEdit.phone_number,
@@ -56,7 +55,7 @@ export default function CreateClientModal({ opened, close, onSuccess, clientToEd
           collection_days: clientToEdit.collection_days || [],
         });
         
-        // On remplit le GPS si dispo
+        // Récupération des coordonnées pour la carte
         if (clientToEdit.location && clientToEdit.location.coordinates) {
              setGps({ 
                 lat: clientToEdit.location.coordinates[0], 
@@ -64,7 +63,7 @@ export default function CreateClientModal({ opened, close, onSuccess, clientToEd
             });
         }
       } else {
-        // Mode CRÉATION : On vide
+        // Mode CRÉATION
         form.reset();
         setGps(null);
       }
@@ -90,12 +89,11 @@ export default function CreateClientModal({ opened, close, onSuccess, clientToEd
         location_status: 'VERIFIED'
       };
 
-      // C'EST ICI QUE VOUS AVIEZ L'ERREUR
       if (clientToEdit) {
-          // Si on édite, on fait un PATCH avec l'ID
+          // UPDATE
           await api.patch(`/clients/${clientToEdit.id}`, payload);
       } else {
-          // Sinon on crée
+          // CREATE
           await api.post('/clients', payload);
       }
 
@@ -118,7 +116,13 @@ export default function CreateClientModal({ opened, close, onSuccess, clientToEd
   };
 
   return (
-    <Modal opened={opened} onClose={close} title={clientToEdit ? "Modifier le client" : "Nouveau Client"} size="lg" centered>
+    <Modal 
+      opened={opened} 
+      onClose={close} 
+      title={clientToEdit ? "Modifier le client" : "Nouveau Client"} 
+      size="lg" 
+      centered
+    >
       <form onSubmit={form.onSubmit(handleSubmit)}>
         <Stack>
           {errorMsg && (
@@ -128,18 +132,21 @@ export default function CreateClientModal({ opened, close, onSuccess, clientToEd
           )}
 
           <Group grow>
-            <TextInput label="Nom complet" placeholder="Mme. Kavira" withAsterisk {...form.getInputProps('name')} />
-            <TextInput label="Téléphone" placeholder="+243..." withAsterisk {...form.getInputProps('phone_number')} />
+            <TextInput label="Nom complet" withAsterisk {...form.getInputProps('name')} />
+            <TextInput label="Téléphone" withAsterisk {...form.getInputProps('phone_number')} />
           </Group>
           
-          <TextInput label="Email" placeholder="client@mail.com" {...form.getInputProps('email')} />
+          <TextInput label="Email" {...form.getInputProps('email')} />
 
           <Group grow>
             <TextInput label="Avenue / Rue" withAsterisk {...form.getInputProps('street_address')} />
             <TextInput label="Quartier" withAsterisk {...form.getInputProps('district')} />
           </Group>
 
+          {/* LA CARTE (Note: idéalement LocationPicker devrait accepter une prop 'initialPosition' pour centrer la carte, mais ça marchera quand même pour la sélection) */}
           <LocationPicker onLocationSelect={(lat, lng) => setGps({ lat, lng })} />
+          {/* Petit hack visuel : si on édite, on dit à l'user que la position est déjà prise en compte sauf s'il clique ailleurs */}
+          {clientToEdit && gps && <div style={{fontSize: 12, color: 'green', textAlign: 'center'}}>Position actuelle conservée (Cliquez pour changer)</div>}
 
           <Group grow>
             <Select 
@@ -163,7 +170,9 @@ export default function CreateClientModal({ opened, close, onSuccess, clientToEd
 
           <Group justify="flex-end" mt="md">
             <Button variant="default" onClick={close}>Annuler</Button>
-            <Button type="submit" loading={loading}>{clientToEdit ? "Sauvegarder" : "Créer"}</Button>
+            <Button type="submit" loading={loading}>
+                {clientToEdit ? "Sauvegarder" : "Enregistrer"}
+            </Button>
           </Group>
         </Stack>
       </form>
