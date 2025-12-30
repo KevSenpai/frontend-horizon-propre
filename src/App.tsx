@@ -11,7 +11,8 @@ import ClientsPage from './pages/ClientsPage';
 import ToursPage from './pages/ToursPage';
 import TourDetailsPage from './pages/TourDetailsPage';
 import DashboardPage from './pages/DashboardPage';
-
+import HistoryPage from './pages/HistoryPage';
+import { IconHistory } from '@tabler/icons-react';
 export default function App() {
   const [opened, { toggle }] = useDisclosure();
   const navigate = useNavigate();
@@ -23,6 +24,7 @@ export default function App() {
     { label: 'Clients', icon: IconUser, path: '/clients' },
     { label: 'Véhicules', icon: IconTruck, path: '/vehicles' },
     { label: 'Planification', icon: IconMapPin, path: '/planning' },
+    { label: 'Historique', icon: IconHistory, path: '/history' },
   ];
 
   return (
@@ -62,6 +64,7 @@ export default function App() {
           <Route path="/clients" element={<ClientsPage />} />
           <Route path="/planning" element={<ToursPage />} />
           <Route path="/planning/:id" element={<TourDetailsPage />} />
+          <Route path="/history" element={<HistoryPage />} />
         </Routes>
       </AppShell.Main>
     </AppShell>
