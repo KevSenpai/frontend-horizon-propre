@@ -12,6 +12,8 @@ export default function RevenueChart({ data, totalAllTime }: Props) {
   // On inverse les données pour l'affichage (de gauche à droite chronologique)
   const chartData = [...data].reverse();
 
+  // ... (code précédent inchangé)
+
   return (
     <Paper withBorder p="md" radius="md" shadow="xs" mb="lg">
       <Group justify="space-between" mb="lg">
@@ -28,8 +30,9 @@ export default function RevenueChart({ data, totalAllTime }: Props) {
         </Group>
       </Group>
 
-      <div style={{ width: '100%', height: 300, minWidth: 0 }}>
-        <ResponsiveContainer width="99%" height="100%">
+      {/* CORRECTION ICI : Styles explicites pour éviter le crash width(-1) */}
+      <div style={{ width: '100%', height: 300, minWidth: 200, minHeight: 300 }}>
+        <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
