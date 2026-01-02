@@ -2,19 +2,21 @@ import React, { useEffect, useState } from 'react';
 import { Table, Title, Container, Badge, Group, Button, Paper, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconPlus } from '@tabler/icons-react';
-import { useNavigate } from 'react-router-dom'; // <--- 1. IMPORT IMPORTANT
+import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
+
+// IMPORT CORRECT : On veut la modale de TOURNEE, pas d'équipe
 import CreateTourModal from '../components/CreateTourModal';
 
 export default function ToursPage() {
   const [tours, setTours] = useState<any[]>([]);
   const [opened, { open, close }] = useDisclosure(false);
-  const navigate = useNavigate(); // <--- 2. INITIALISATION DE LA NAVIGATION
+  const navigate = useNavigate();
 
   const fetchTours = async () => {
     try {
       const res = await api.get('/tours');
-      // Tri par date décroissante (le plus récent en haut)
+      // Tri par date décroissante
       const sortedTours = res.data.sort((a: any, b: any) => 
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
@@ -32,6 +34,7 @@ export default function ToursPage() {
       case 'PLANNED': return 'blue';
       case 'IN_PROGRESS': return 'orange';
       case 'COMPLETED': return 'green';
+      case 'CANCELLED': return 'red';
       default: return 'gray';
     }
   };
@@ -49,7 +52,6 @@ export default function ToursPage() {
         <Badge color={getStatusColor(tour.status)}>{tour.status}</Badge>
       </Table.Td>
       <Table.Td>
-        {/* 3. LE BOUTON BRANCHÉ */}
         <Button 
           size="xs" 
           variant="light" 
@@ -85,6 +87,7 @@ export default function ToursPage() {
         {tours.length === 0 && <Text ta="center" py="xl" c="dimmed">Aucune tournée planifiée.</Text>}
       </Paper>
 
+      {/* C'EST ICI LA CORRECTION : CreateTourModal et non CreateTeamModal */}
       <CreateTourModal opened={opened} close={close} onSuccess={fetchTours} />
     </Container>
   );
