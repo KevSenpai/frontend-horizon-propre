@@ -49,10 +49,20 @@ export default function TourDetailsPage() {
       const assignedRes = await api.get(`/tour-clients/tour/${id}`);
       setTourClients(assignedRes.data);
 
-      // c. Clients disponibles
-      const allClientsRes = await api.get('/clients');
+      // ... dans loadData
+      // c. Clients disponibles (filtrage local + serveur)
+      
+      // On récupère la date de la tournée actuelle
+      const dateStr = tourRes.data.tour_date;
+
+      // On appelle le endpoint 'available' avec la date
+      const allClientsRes = await api.get(`/clients/available?date=${dateStr}`);
+      
       const assignedIds = new Set(assignedRes.data.map((tc: any) => tc.clientId));
-      const available = allClientsRes.data.filter((c: any) => !assignedIds.has(c.id) && c.status === 'ACTIVE');
+      // On n'a plus besoin de filtrer le statut ACTIVE ici car le backend le fait,
+      // mais on filtre toujours ceux qui sont DANS CETTE tournée
+      const available = allClientsRes.data.filter((c: any) => !assignedIds.has(c.id));
+      
       setAvailableClients(available);
     } catch (error) {
       console.error("Erreur chargement", error);

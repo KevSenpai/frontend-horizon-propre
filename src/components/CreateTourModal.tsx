@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, Button, TextInput, Select, Stack, Group, Alert } from '@mantine/core';
+import { Modal, Button, TextInput, Select, Stack, Group, Alert, Text } from '@mantine/core';
 import { DateInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
-import { IconAlertCircle } from '@tabler/icons-react';
+import { IconAlertCircle, IconInfoCircle } from '@tabler/icons-react';
 import { api } from '../services/api';
 
 interface Props {
@@ -15,7 +15,6 @@ export default function CreateTourModal({ opened, close, onSuccess }: Props) {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   
-  // États pour les listes déroulantes
   const [teams, setTeams] = useState<{value: string, label: string}[]>([]);
   const [vehicles, setVehicles] = useState<{value: string, label: string}[]>([]);
 
@@ -33,58 +32,67 @@ export default function CreateTourModal({ opened, close, onSuccess }: Props) {
     },
   });
 
-  // Charger les données quand la modale s'ouvre
+  // Fonction pour charger les ressources DISPONIBLES pour une date
+  const loadAvailableResources = async (date: Date) => {
+    // Format YYYY-MM-DD
+    const dateStr = date.toISOString().split('T')[0];
+    
+    try {
+      // On vide les sélections actuelles car elles pourraient devenir invalides
+      form.setFieldValue('team_id', '');
+      form.setFieldValue('vehicle_id', '');
+
+      // Appel API avec le paramètre ?date=...
+      const [teamsRes, vehiclesRes] = await Promise.all([
+        api.get(`/teams/available?date=${dateStr}`),
+        api.get(`/vehicles/available?date=${dateStr}`)
+      ]);
+
+      setTeams(teamsRes.data.map((t: any) => ({ value: t.id, label: t.name })));
+      setVehicles(vehiclesRes.data.map((v: any) => ({ value: v.id, label: `${v.name} (${v.license_plate})` })));
+
+    } catch (e) {
+      console.error("Erreur chargement ressources", e);
+    }
+  };
+
+  // 1. Au chargement initial (Date du jour)
   useEffect(() => {
     if (opened) {
+      loadAvailableResources(form.values.tour_date || new Date());
       setErrorMsg(null);
-      
-      // Récupérer les équipes actives
-      api.get('/teams').then(res => {
-        const activeTeams = res.data
-          .filter((t: any) => t.status === 'ACTIVE')
-          .map((t: any) => ({ value: t.id, label: t.name }));
-        setTeams(activeTeams);
-      });
-
-      // Récupérer les véhicules opérationnels
-      api.get('/vehicles').then(res => {
-        const activeVehicles = res.data
-          .filter((v: any) => v.status === 'OPERATIONAL')
-          .map((v: any) => ({ value: v.id, label: `${v.name} (${v.license_plate})` }));
-        setVehicles(activeVehicles);
-      });
     }
   }, [opened]);
 
-  const handleSubmit = async (values: typeof form.values) => {
-    if (!values.tour_date) {
-        alert("Veuillez sélectionner une date valide.");
-        return;
+  // 2. Quand l'utilisateur change la date, on recharge les ressources
+  const handleDateChange = (date: Date | null) => {
+    if (date) {
+      form.setFieldValue('tour_date', date);
+      loadAvailableResources(date);
     }
+  };
 
+  const handleSubmit = async (values: typeof form.values) => {
+    if (!values.tour_date) return;
     setLoading(true);
     setErrorMsg(null);
     
     try {
       const safeDate = new Date(values.tour_date);
-      
-      const payload = {
+      await api.post('/tours', {
         ...values,
         tour_date: safeDate.toISOString().split('T')[0]
-      };
-
-      await api.post('/tours', payload);
+      });
       
       form.reset();
       form.setFieldValue('tour_date', new Date());
       onSuccess();
       close();
     } catch (error: any) {
-      console.error("Erreur création tournée:", error);
       if (error.response && error.response.status === 409) {
-        setErrorMsg("Conflit : Cette équipe ou ce véhicule est déjà pris à cette date !");
+        setErrorMsg("Conflit : Ressource déjà occupée (vérification serveur).");
       } else {
-        setErrorMsg("Erreur technique lors de la création.");
+        setErrorMsg("Erreur technique.");
       }
     } finally {
       setLoading(false);
@@ -114,29 +122,49 @@ export default function CreateTourModal({ opened, close, onSuccess }: Props) {
             placeholder="Choisir une date"
             withAsterisk
             value={form.values.tour_date}
-            onChange={(date) => date && form.setFieldValue('tour_date', date)}
+            onChange={handleDateChange} // On utilise notre fonction custom
             error={form.errors.tour_date}
           />
 
-          <Select
-            label="Équipe assignée"
-            placeholder="Choisir une équipe"
-            data={teams}
-            withAsterisk
-            {...form.getInputProps('team_id')}
-          />
+          {/* SÉLECTION ÉQUIPE */}
+          {teams.length > 0 ? (
+             <Select
+                label="Équipe disponible"
+                placeholder="Choisir une équipe"
+                data={teams}
+                withAsterisk
+                {...form.getInputProps('team_id')}
+             />
+          ) : (
+             <Alert variant="light" color="orange" title="Indisponible" icon={<IconInfoCircle />}>
+                Aucune équipe active n'est disponible pour cette date.
+             </Alert>
+          )}
 
-          <Select
-            label="Véhicule assigné"
-            placeholder="Choisir un camion"
-            data={vehicles}
-            withAsterisk
-            {...form.getInputProps('vehicle_id')}
-          />
+          {/* SÉLECTION VÉHICULE */}
+          {vehicles.length > 0 ? (
+             <Select
+                label="Véhicule disponible"
+                placeholder="Choisir un camion"
+                data={vehicles}
+                withAsterisk
+                {...form.getInputProps('vehicle_id')}
+             />
+          ) : (
+             <Alert variant="light" color="orange" mt="xs" icon={<IconInfoCircle />}>
+                Aucun véhicule opérationnel n'est disponible pour cette date.
+             </Alert>
+          )}
 
           <Group justify="flex-end" mt="md">
             <Button variant="default" onClick={close}>Annuler</Button>
-            <Button type="submit" loading={loading}>Créer le brouillon</Button>
+            <Button 
+                type="submit" 
+                loading={loading} 
+                disabled={teams.length === 0 || vehicles.length === 0} // On bloque si pas de ressource
+            >
+                Créer le brouillon
+            </Button>
           </Group>
         </Stack>
       </form>
