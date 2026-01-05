@@ -3,7 +3,7 @@ import { AppShell, Burger, Group, Title, NavLink, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconUsers, IconTruck, IconMapPin, IconDashboard, IconUser } from '@tabler/icons-react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
-
+import LoginPage from './pages/LoginPage';
 // Import des pages uniquement (Pas de Modals ici !)
 import TeamsPage from './pages/TeamsPage';
 import VehiclesPage from './pages/VehiclesPage';
@@ -19,6 +19,11 @@ export default function App() {
   const [opened, { toggle }] = useDisclosure();
   const navigate = useNavigate();
   const location = useLocation();
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    return <LoginPage />;
+  }
+  
 
   const menuItems = [
     { label: 'Tableau de bord', icon: IconDashboard, path: '/' },
