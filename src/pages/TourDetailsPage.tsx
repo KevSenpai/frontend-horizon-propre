@@ -138,14 +138,27 @@ export default function TourDetailsPage() {
     } catch (e) { alert("Erreur statut"); }
   };
 
+  // 6. Auto-Planification ⚡
   const handleAutoPlan = async () => {
-    if (!isEditable || !confirm("Remplacer la liste par une suggestion auto ?")) return;
+    if (!isEditable || !confirm("Attention : L'auto-planification va remplacer la liste actuelle par une suggestion optimisée. Continuer ?")) return;
+    
     setLoading(true);
     try {
       const res = await api.post(`/tours/${id}/auto-plan`);
-      alert(`Terminé ! ${res.data.count} clients ajoutés.`);
+      alert(`Terminé ! ${res.data.count} clients ont été ajoutés à la tournée.`);
       loadData(); 
-    } catch (e) { alert("Erreur auto-plan"); } finally { setLoading(false); }
+    } catch (error: any) { // <--- CORRECTION ICI
+      console.error(error);
+      
+      // Si le backend nous donne une raison précise (ex: 409 Conflict)
+      if (error.response && error.response.data && error.response.data.message) {
+          alert("Échec : " + error.response.data.message);
+      } else {
+          alert("Erreur technique lors de la planification.");
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDownloadPdf = () => {
