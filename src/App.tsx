@@ -1,87 +1,96 @@
-import React, { useState } from 'react';
-import { Container, Paper, Title, TextInput, PasswordInput, Button, Stack, Alert } from '@mantine/core';
-import { useForm } from '@mantine/form';
-import { IconAlertCircle } from '@tabler/icons-react';
-import { api } from '../services/api';
+import React from 'react';
+import { AppShell, Burger, Group, Title, NavLink, Text, Button } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
+import { IconUsers, IconTruck, IconMapPin, IconDashboard, IconUser, IconHistory, IconCurrencyDollar } from '@tabler/icons-react';
+import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 
-export default function LoginPage() {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+// Import des pages
+import TeamsPage from './pages/TeamsPage';
+import VehiclesPage from './pages/VehiclesPage';
+import ClientsPage from './pages/ClientsPage';
+import ToursPage from './pages/ToursPage';
+import TourDetailsPage from './pages/TourDetailsPage';
+import DashboardPage from './pages/DashboardPage';
+import HistoryPage from './pages/HistoryPage';
+import FinancePage from './pages/FinancePage';
+import LoginPage from './pages/LoginPage';
 
-  const form = useForm({
-    initialValues: {
-      email: '',
-      password: '',
-    },
-    validate: {
-      // CORRECTION ICI : Ajout du type ': string'
-      email: (val: string) => (/^\S+@\S+$/.test(val) ? null : 'Email invalide'),
-      password: (val: string) => (val.length < 6 ? 'Mot de passe trop court' : null),
-    },
-  });
+export default function App() {
+  const [opened, { toggle }] = useDisclosure();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  const handleSubmit = async (values: typeof form.values) => {
-    setLoading(true);
-    setError(null);
-    try {
-      // Appel au Backend pour avoir le token
-      const res = await api.post('/auth/login', values);
-      
-      // Stockage du token dans le navigateur
-      localStorage.setItem('access_token', res.data.access_token);
-      
-      // Redirection vers l'accueil
-      window.location.href = '/';
-      
-    } catch (err: any) {
-      console.error(err);
-      if (err.response?.status === 401) {
-        setError('Email ou mot de passe incorrect.');
-      } else {
-        setError('Erreur de connexion serveur.');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Vérification du Token
+  const token = localStorage.getItem('access_token');
+
+  // Si pas connecté, on affiche Login
+  if (!token) {
+    return <LoginPage />;
+  }
+
+  const menuItems = [
+    { label: 'Tableau de bord', icon: IconDashboard, path: '/' },
+    { label: 'Équipes', icon: IconUsers, path: '/teams' },
+    { label: 'Clients', icon: IconUser, path: '/clients' },
+    { label: 'Véhicules', icon: IconTruck, path: '/vehicles' },
+    { label: 'Planification', icon: IconMapPin, path: '/planning' },
+    { label: 'Historique', icon: IconHistory, path: '/history' },
+    { label: 'Finance', icon: IconCurrencyDollar, path: '/finance' },
+  ];
 
   return (
-    <Container size={420} my={40}>
-      <Title ta="center" mb={30}>Horizon Propre 🌍</Title>
-      
-      <Paper withBorder shadow="md" p={30} mt={30} radius="md">
-        <form onSubmit={form.onSubmit(handleSubmit)}>
-          <Stack>
-            {error && (
-                <MantineAlert color="red" icon={<IconAlertCircle />}>{error}</MantineAlert>
-            )}
-            
-            <TextInput 
-                label="Email" 
-                placeholder="admin@horizon.com" 
-                required 
-                {...form.getInputProps('email')} 
-            />
-            
-            <PasswordInput 
-                label="Mot de passe" 
-                placeholder="Votre mot de passe" 
-                required 
-                mt="md" 
-                {...form.getInputProps('password')} 
-            />
-            
-            <Button fullWidth mt="xl" type="submit" loading={loading}>
-              Se connecter
-            </Button>
-          </Stack>
-        </form>
-      </Paper>
-    </Container>
-  );
-}
+    <AppShell
+      header={{ height: 60 }}
+      navbar={{ width: 300, breakpoint: 'sm', collapsed: { mobile: !opened } }}
+      padding="md"
+    >
+      <AppShell.Header>
+        <Group h="100%" px="md">
+          <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
+          <Group gap="xs">
+            <Text size="xl">🌍</Text>
+            <Title order={3}>Horizon Propre</Title>
+          </Group>
+          <Button 
+            variant="subtle" 
+            color="red" 
+            size="xs" 
+            ml="auto"
+            onClick={() => {
+                localStorage.removeItem('access_token');
+                window.location.href = '/login';
+            }}
+          >
+            Déconnexion
+          </Button>
+        </Group>
+      </AppShell.Header>
 
-// Petit helper pour l'alerte si l'import direct ne marche pas (dépend des versions Mantine)
-function MantineAlert({ children, color, icon }: any) {
-    return <Alert color={color} icon={icon} title="Erreur">{children}</Alert>;
+      <AppShell.Navbar p="md">
+        {menuItems.map((item) => (
+          <NavLink
+            key={item.label}
+            label={item.label}
+            leftSection={<item.icon size="1rem" stroke={1.5} />}
+            active={location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path))}
+            onClick={() => { navigate(item.path); if (opened) toggle(); }}
+            variant="light"
+          />
+        ))}
+      </AppShell.Navbar>
+
+      <AppShell.Main bg="gray.0">
+        <Routes>
+          <Route path="/" element={<DashboardPage />} />
+          <Route path="/teams" element={<TeamsPage />} />
+          <Route path="/vehicles" element={<VehiclesPage />} />
+          <Route path="/clients" element={<ClientsPage />} />
+          <Route path="/planning" element={<ToursPage />} />
+          <Route path="/planning/:id" element={<TourDetailsPage />} />
+          <Route path="/history" element={<HistoryPage />} />
+          <Route path="/finance" element={<FinancePage />} />
+        </Routes>
+      </AppShell.Main>
+    </AppShell>
+  );
 }
