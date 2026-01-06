@@ -44,12 +44,16 @@ export default function HistoryPage() {
         <Table.Td>{col.tour?.name || 'Tournée supprimée'}</Table.Td>
         <Table.Td>{col.tour?.team?.name || '-'}</Table.Td>
         <Table.Td>
-          <Badge 
-            color={isDone ? 'green' : 'red'} 
-            leftSection={isDone ? <IconCheck size={12}/> : <IconX size={12}/>}
-          >
-            {isDone ? 'COLLECTÉ' : 'ÉCHEC'}
+          // ...
+         <Badge 
+            color={
+                col.status === 'COMPLETED' ? 'green' : 
+                col.status === 'MISSED' ? 'gray' : 'red' // Gris pour Missed, Rouge pour Failed
+            } 
+            >
+            {col.status === 'COMPLETED' ? 'COLLECTÉ' : col.status === 'MISSED' ? 'NON COLLECTÉ' : 'ÉCHEC'}
           </Badge>
+// ...
           {!isDone && col.reason_if_failed && (
             <Text size="xs" c="red" mt={4}>Motif : {col.reason_if_failed}</Text>
           )}

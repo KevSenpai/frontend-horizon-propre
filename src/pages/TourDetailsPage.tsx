@@ -173,6 +173,7 @@ export default function TourDetailsPage() {
       case 'IN_PROGRESS': return 'orange';
       case 'COMPLETED': return 'green';
       case 'CANCELLED': return 'red';
+      case 'UNFINISHED': return 'red';
       default: return 'gray';
     }
   };
