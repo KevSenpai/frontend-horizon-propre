@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Container, Title, Paper, Table, Badge, Text, Group, LoadingOverlay } from '@mantine/core';
+import { Container, Title, Paper, Table, Badge, Text, Group, LoadingOverlay, Button } from '@mantine/core';
 import { IconCheck, IconX, IconCalendarTime } from '@tabler/icons-react';
 import { api } from '../services/api';
 
@@ -21,6 +21,41 @@ export default function HistoryPage() {
     };
     fetchHistory();
   }, []);
+
+  // 1. Ajouter cette fonction
+const downloadCSV = () => {
+    if (collections.length === 0) return;
+
+    // Création de l'en-tête
+    const headers = ["Date", "Heure", "Client", "Tournée", "Équipe", "Statut", "Motif"];
+    
+    // Transformation des données
+    const csvContent = [
+        headers.join(","),
+        ...collections.map(col => {
+            const date = new Date(col.collected_at);
+            return [
+                date.toLocaleDateString(),
+                date.toLocaleTimeString(),
+                `"${col.client?.name || 'Inconnu'}"`,
+                `"${col.tour?.name || '-'}"`,
+                `"${col.tour?.team?.name || '-'}"`,
+                col.status,
+                `"${col.reason_if_failed || ''}"`
+            ].join(",");
+        })
+    ].join("\n");
+
+    // Téléchargement
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `historique_collectes_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
 
   const rows = collections.map((col) => {
     const isDone = col.status === 'COMPLETED';
@@ -64,7 +99,10 @@ export default function HistoryPage() {
 
   return (
     <Container size="xl" py="xl">
-      <Title order={2} mb="lg">Historique des Collectes</Title>
+    <Group justify="space-between" mb="lg">
+     <Title order={2}>Historique des Collectes</Title>
+     <Button variant="outline" onClick={downloadCSV}>📄 Exporter CSV</Button>
+    </Group>
       
       <Paper shadow="xs" p="md" withBorder style={{ position: 'relative', minHeight: 200 }}>
         <LoadingOverlay visible={loading} />
