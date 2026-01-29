@@ -66,27 +66,33 @@ export default function StatsChart({ data }: Props) {
 
   // ... (code précédent inchangé)
 
+  // ...
+
+  // Si pas de données, on n'affiche rien
+  if (!chartData || chartData.length === 0) {
+    return (
+        <Paper withBorder p="md" radius="md" mt="lg" shadow="xs">
+            <Title order={4}>Activité</Title>
+            <Text c="dimmed" ta="center" py="xl">Pas de données.</Text>
+        </Paper>
+    ); 
+  }
+
   return (
     <Paper withBorder p="md" radius="md" mt="lg" shadow="xs">
       <Title order={4} mb="md">Activité de la semaine</Title>
       
-      {/* AJOUT DE minWidth: 0 ICI 👇 */}
-      <div style={{ position: 'relative', width: '100%', height: 300, minWidth: 0 }}>
-        {chartData.length > 0 ? (
-            <ResponsiveContainer width="99%" height="100%">
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" tick={{fontSize: 12}} />
-                <YAxis allowDecimals={false} />
-                <Tooltip />
-                <Bar dataKey="tournees" fill="#228be6" name="Tournées" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-        ) : (
-             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                <Text c="dimmed">Aucune donnée disponible.</Text>
-             </div>
-        )}
+      {/* On utilise un style inline strict */}
+      <div style={{ width: '100%', height: '300px', position: 'relative' }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={chartData}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="name" tick={{fontSize: 12}} />
+            <YAxis allowDecimals={false} />
+            <Tooltip />
+            <Bar dataKey="tournees" fill="#228be6" name="Tournées" radius={[4, 4, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
       </div>
     </Paper>
   );
