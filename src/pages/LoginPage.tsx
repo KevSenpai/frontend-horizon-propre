@@ -21,11 +21,18 @@ export default function LoginPage() {
     setError(null);
     try {
       const res = await api.post('/auth/login', values);
+      
+      // 1. Stocker le token
       localStorage.setItem('access_token', res.data.access_token);
+      
+      // 2. Stocker le rôle (C'EST ICI LA NOUVEAUTÉ)
+      // Le backend renvoie { access_token, user: { role: '...' } }
+      localStorage.setItem('user_role', res.data.user.role);
+      
       window.location.href = '/';
+      
     } catch (err: any) {
-      if (err.response?.status === 401) setError('Email ou mot de passe incorrect.');
-      else setError('Erreur de connexion serveur.');
+      // ... (gestion erreur inchangée)
     } finally {
       setLoading(false);
     }

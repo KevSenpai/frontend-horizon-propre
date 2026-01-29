@@ -1,10 +1,9 @@
 import React from 'react';
-import { AppShell, Burger, Group, Title, NavLink, Text, Button } from '@mantine/core';
+import { AppShell, Burger, Group, Title, NavLink, Text, Button, Badge } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconUsers, IconTruck, IconMapPin, IconDashboard, IconUser, IconHistory, IconCurrencyDollar } from '@tabler/icons-react';
-import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 
-// Import des pages
 import TeamsPage from './pages/TeamsPage';
 import VehiclesPage from './pages/VehiclesPage';
 import ClientsPage from './pages/ClientsPage';
@@ -20,23 +19,43 @@ export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Vérification du Token
   const token = localStorage.getItem('access_token');
+  const userRole = localStorage.getItem('user_role'); // Récupération du rôle
 
-  // Si pas connecté, on affiche Login
   if (!token) {
     return <LoginPage />;
   }
 
-  const menuItems = [
-    { label: 'Tableau de bord', icon: IconDashboard, path: '/' },
-    { label: 'Équipes', icon: IconUsers, path: '/teams' },
-    { label: 'Clients', icon: IconUser, path: '/clients' },
-    { label: 'Véhicules', icon: IconTruck, path: '/vehicles' },
-    { label: 'Planification', icon: IconMapPin, path: '/planning' },
-    { label: 'Historique', icon: IconHistory, path: '/history' },
-    { label: 'Finance', icon: IconCurrencyDollar, path: '/finance' },
+  const handleLogout = () => {
+    localStorage.clear();
+    window.location.href = '/login';
+  };
+
+  // --- DÉFINITION DES MENUS AVEC DROITS ---
+  const allMenuItems = [
+    { label: 'Tableau de bord', icon: IconDashboard, path: '/', roles: ['ADMIN', 'PLANNER'] },
+    // Gestion des ressources : Admin seulement
+    { label: 'Équipes', icon: IconUsers, path: '/teams', roles: ['ADMIN'] }, 
+    { label: 'Véhicules', icon: IconTruck, path: '/vehicles', roles: ['ADMIN'] },
+    // Clients : Admin (et Planner en lecture peut-être, mais disons Admin pour la création)
+    { label: 'Clients', icon: IconUser, path: '/clients', roles: ['ADMIN'] },
+    // Planification : Tout le monde
+    { label: 'Planification', icon: IconMapPin, path: '/planning', roles: ['ADMIN', 'PLANNER'] },
+    { label: 'Historique', icon: IconHistory, path: '/history', roles: ['ADMIN', 'PLANNER'] },
+    // Finance : Admin seulement
+    { label: 'Finance', icon: IconCurrencyDollar, path: '/finance', roles: ['ADMIN'] },
   ];
+
+  // Filtrer les menus visibles
+  const visibleMenu = allMenuItems.filter(item => item.roles.includes(userRole || ''));
+
+  // Composant de protection de route (Redirige si pas le droit)
+  const ProtectedRoute = ({ children, roles }: { children: any, roles: string[] }) => {
+    if (!roles.includes(userRole || '')) {
+      return <div style={{padding: 20}}>Accès interdit. <Button onClick={() => navigate('/')}>Retour accueil</Button></div>;
+    }
+    return children;
+  };
 
   return (
     <AppShell
@@ -50,24 +69,16 @@ export default function App() {
           <Group gap="xs">
             <Text size="xl">🌍</Text>
             <Title order={3}>Horizon Propre</Title>
+            <Badge variant="light" color="gray">{userRole}</Badge>
           </Group>
-          <Button 
-            variant="subtle" 
-            color="red" 
-            size="xs" 
-            ml="auto"
-            onClick={() => {
-                localStorage.removeItem('access_token');
-                window.location.href = '/login';
-            }}
-          >
+          <Button variant="subtle" color="red" size="xs" ml="auto" onClick={handleLogout}>
             Déconnexion
           </Button>
         </Group>
       </AppShell.Header>
 
       <AppShell.Navbar p="md">
-        {menuItems.map((item) => (
+        {visibleMenu.map((item) => (
           <NavLink
             key={item.label}
             label={item.label}
@@ -81,14 +92,17 @@ export default function App() {
 
       <AppShell.Main bg="gray.0">
         <Routes>
+          {/* Routes Accessibles à tous (Admin + Planner) */}
           <Route path="/" element={<DashboardPage />} />
-          <Route path="/teams" element={<TeamsPage />} />
-          <Route path="/vehicles" element={<VehiclesPage />} />
-          <Route path="/clients" element={<ClientsPage />} />
           <Route path="/planning" element={<ToursPage />} />
           <Route path="/planning/:id" element={<TourDetailsPage />} />
           <Route path="/history" element={<HistoryPage />} />
-          <Route path="/finance" element={<FinancePage />} />
+
+          {/* Routes ADMIN UNIQUEMENT */}
+          <Route path="/teams" element={<ProtectedRoute roles={['ADMIN']}><TeamsPage /></ProtectedRoute>} />
+          <Route path="/vehicles" element={<ProtectedRoute roles={['ADMIN']}><VehiclesPage /></ProtectedRoute>} />
+          <Route path="/clients" element={<ProtectedRoute roles={['ADMIN']}><ClientsPage /></ProtectedRoute>} />
+          <Route path="/finance" element={<ProtectedRoute roles={['ADMIN']}><FinancePage /></ProtectedRoute>} />
         </Routes>
       </AppShell.Main>
     </AppShell>
