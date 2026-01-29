@@ -82,9 +82,17 @@ export default function CreateClientModal({ opened, close, onSuccess, clientToEd
     try {
       const payload = {
         ...values,
+        // --- FORMATAGE DES DONNÉES POUR L'API ---
+        client_type: values.client_type, // Assurer que c'est une chaîne
+        service_type: values.service_type, // Assurer que c'est une chaîne
+        collection_days: values.collection_days, // Doit être un tableau de chaînes
+        
         location: {
           type: 'Point',
-          coordinates: [gps.lat, gps.lng],
+          // Attention à l'ordre: Longitude, Latitude pour GeoJSON standard
+          // L'API attend `coordinates: [long, lat]`
+          // Si vous avez Latitude/Longitude dans le state gps, c'est ok
+          coordinates: [gps!.lng, gps!.lat], // On utilise lng (longitude) en premier pour GeoJSON
         },
         location_status: 'VERIFIED'
       };
