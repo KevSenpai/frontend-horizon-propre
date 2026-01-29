@@ -94,7 +94,18 @@ export default function FinancePage() {
         </Badge>
       </Table.Td>
       <Table.Td>
-        {inv.status === 'PENDING' && <Button size="xs" color="green" leftSection={<IconCheck size={14}/>} onClick={() => handleMarkPaid(inv)}>Encaisser</Button>}
+        {/* --- CORRECTION ICI : ON ACCEPTE PENDING OU OVERDUE --- */}
+        {(inv.status === 'PENDING' || inv.status === 'OVERDUE') && (
+            <Button 
+                size="xs" 
+                color="green" 
+                leftSection={<IconCheck size={14}/>} 
+                onClick={() => handleMarkPaid(inv)}
+            >
+                Encaisser
+            </Button>
+        )}
+        
         {inv.status === 'PAID' && <Text size="sm" c="dimmed">Payé</Text>}
       </Table.Td>
     </Table.Tr>
