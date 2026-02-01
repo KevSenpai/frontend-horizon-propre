@@ -8,13 +8,28 @@ import L from 'leaflet';
 import { api } from '../services/api';
 import { connectSocket, disconnectSocket } from '../services/socket';
 
-// Icône Camion pour la carte
+// --- ICÔNES ---
 const truckIcon = L.divIcon({
   html: '<div style="font-size: 24px;">🚚</div>',
   className: 'truck-icon',
   iconSize: [30, 30],
   iconAnchor: [15, 15]
 });
+
+const greenIcon = L.divIcon({
+  html: '<div style="background-color: #40c057; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 3px black;"></div>',
+  className: 'custom-green-icon',
+  iconSize: [12, 12],
+  iconAnchor: [6, 6]
+});
+
+const createNumberedIcon = (number: number) => L.divIcon({
+  html: `<div style="background-color: #228be6; color: white; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; border: 2px solid white; box-shadow: 0 0 3px black;">${number}</div>`,
+  className: 'custom-num-icon',
+  iconSize: [20, 20],
+  iconAnchor: [10, 10]
+});
+// --------------
 
 export default function TourDetailsPage() {
   const { id } = useParams();
@@ -28,42 +43,28 @@ export default function TourDetailsPage() {
 
   const isEditable = tour?.status === 'DRAFT';
 
-  // Calcul de la progression (Temps Réel)
   const totalStops = tourClients.length;
-  // On compte ceux qui ont un statut 'COMPLETED' (via Socket ou BDD)
   const completedStops = tourClients.filter((tc: any) => tc.lastStatus === 'COMPLETED').length;
   const progressPercent = totalStops > 0 ? (completedStops / totalStops) * 100 : 0;
 
-  // 1. Chargement initial
   const loadData = async () => {
     if (!id) return;
     setLoading(true);
     try {
-      // a. Infos tournée
       const tourRes = await api.get(`/tours/${id}`);
       setTour(tourRes.data);
 
-      // b. Clients dans la tournée
-      // Note: Dans une version avancée, l'API devrait aussi renvoyer le statut 'isCollected'
-      // Pour le MVP, on se base sur le WebSocket pour le temps réel
       const assignedRes = await api.get(`/tour-clients/tour/${id}`);
       setTourClients(assignedRes.data);
 
-      // ... dans loadData
-      // c. Clients disponibles (filtrage local + serveur)
-      
-      // On récupère la date de la tournée actuelle
-      const dateStr = tourRes.data.tour_date;
-
-      // On appelle le endpoint 'available' avec la date
-      const allClientsRes = await api.get(`/clients/available?date=${dateStr}`);
-      
-      const assignedIds = new Set(assignedRes.data.map((tc: any) => tc.clientId));
-      // On n'a plus besoin de filtrer le statut ACTIVE ici car le backend le fait,
-      // mais on filtre toujours ceux qui sont DANS CETTE tournée
-      const available = allClientsRes.data.filter((c: any) => !assignedIds.has(c.id));
-      
-      setAvailableClients(available);
+      // Récupération des clients disponibles selon la date de la tournée
+      if (tourRes.data.tour_date) {
+          const allClientsRes = await api.get(`/clients/available?date=${tourRes.data.tour_date}`);
+          // On filtre ceux qui sont déjà dans CETTE tournée (le backend filtre déjà les autres tournées)
+          const assignedIds = new Set(assignedRes.data.map((tc: any) => tc.clientId));
+          const available = allClientsRes.data.filter((c: any) => !assignedIds.has(c.id));
+          setAvailableClients(available);
+      }
     } catch (error) {
       console.error("Erreur chargement", error);
     } finally {
@@ -71,28 +72,20 @@ export default function TourDetailsPage() {
     }
   };
 
-  // 2. Gestion WebSockets (Temps Réel)
   useEffect(() => {
     loadData();
-
     const socket = connectSocket();
-
-    // A. Écoute Position Camion
     socket.on(`trackTour:${id}`, (data: { lat: number, lng: number }) => {
         setTruckPosition({ lat: data.lat, lng: data.lng });
     });
-
-    // B. Écoute Validation Collecte (Mise à jour liste & barre de progression)
     socket.on(`tourProgress:${id}`, (payload: { clientId: string, status: string }) => {
         setTourClients(currentList => currentList.map(item => {
             if (item.clientId === payload.clientId) {
-                // On met à jour le statut localement pour l'effet visuel immédiat
                 return { ...item, lastStatus: payload.status };
             }
             return item;
         }));
     });
-
     return () => {
         socket.off(`trackTour:${id}`);
         socket.off(`tourProgress:${id}`);
@@ -100,8 +93,6 @@ export default function TourDetailsPage() {
     };
   }, [id]);
 
-  // 3. Actions (Ajout, Retrait, Drag&Drop, Statuts...)
-  
   const handleAddClient = async (client: any) => {
     if (!isEditable) return; 
     try {
@@ -113,7 +104,7 @@ export default function TourDetailsPage() {
 
   const handleRemoveClient = async (clientId: string) => {
     if (!isEditable) return;
-    if(!confirm("Retirer ce client de la tournée ?")) return;
+    if(!confirm("Retirer ce client ?")) return;
     try {
       await api.delete(`/tour-clients/${id}/${clientId}`);
       loadData();
@@ -126,7 +117,6 @@ export default function TourDetailsPage() {
     const [reorderedItem] = items.splice(result.source.index, 1);
     items.splice(result.destination.index, 0, reorderedItem);
     setTourClients(items);
-    // TODO: Sauvegarde ordre API
   };
 
   const changeStatus = async (newStatus: string) => {
@@ -138,27 +128,14 @@ export default function TourDetailsPage() {
     } catch (e) { alert("Erreur statut"); }
   };
 
-  // 6. Auto-Planification ⚡
   const handleAutoPlan = async () => {
-    if (!isEditable || !confirm("Attention : L'auto-planification va remplacer la liste actuelle par une suggestion optimisée. Continuer ?")) return;
-    
+    if (!isEditable || !confirm("Remplacer par auto-planification ?")) return;
     setLoading(true);
     try {
       const res = await api.post(`/tours/${id}/auto-plan`);
-      alert(`Terminé ! ${res.data.count} clients ont été ajoutés à la tournée.`);
+      alert(`Ajoutés : ${res.data.count}`);
       loadData(); 
-    } catch (error: any) { // <--- CORRECTION ICI
-      console.error(error);
-      
-      // Si le backend nous donne une raison précise (ex: 409 Conflict)
-      if (error.response && error.response.data && error.response.data.message) {
-          alert("Échec : " + error.response.data.message);
-      } else {
-          alert("Erreur technique lors de la planification.");
-      }
-    } finally {
-      setLoading(false);
-    }
+    } catch (e) { alert("Erreur auto-plan"); } finally { setLoading(false); }
   };
 
   const handleDownloadPdf = () => {
@@ -172,9 +149,7 @@ export default function TourDetailsPage() {
       case 'PLANNED': return 'blue';
       case 'IN_PROGRESS': return 'orange';
       case 'COMPLETED': return 'green';
-      case 'CANCELLED': return 'red';
-      case 'UNFINISHED': return 'red';
-      default: return 'gray';
+      default: return 'red';
     }
   };
 
@@ -184,7 +159,6 @@ export default function TourDetailsPage() {
     <Container size="xl" py="xl">
       <LoadingOverlay visible={loading} zIndex={1000} overlayProps={{ radius: "sm", blur: 2 }} />
       
-      {/* HEADER */}
       <Paper withBorder p="md" mb="lg" shadow="xs">
         <Group justify="space-between">
           <Group>
@@ -195,7 +169,7 @@ export default function TourDetailsPage() {
             </div>
           </Group>
           <Group>
-            <Button variant="default" leftSection={<IconPrinter size={16}/>} onClick={handleDownloadPdf}>Imprimer</Button>
+            <Button variant="default" leftSection={<IconPrinter size={16}/>} onClick={handleDownloadPdf}>PDF</Button>
             <Badge size="xl" variant="light" color={getStatusColor(tour.status)}>{tour.status}</Badge>
             {tour.status === 'DRAFT' && <Button color="green" leftSection={<IconCheck size={16}/>} onClick={() => changeStatus('PLANNED')}>Valider</Button>}
             {['DRAFT', 'PLANNED'].includes(tour.status) && <Button color="red" variant="outline" leftSection={<IconX size={16}/>} onClick={() => changeStatus('CANCELLED')}>Annuler</Button>}
@@ -203,33 +177,58 @@ export default function TourDetailsPage() {
         </Group>
       </Paper>
 
-      {/* CARTE TEMPS RÉEL */}
-      {['PLANNED', 'IN_PROGRESS'].includes(tour.status) && (
-          <Paper withBorder p="0" mb="lg" h={300} style={{ overflow: 'hidden', position: 'relative' }}>
-              <MapContainer center={truckPosition ? [truckPosition.lat, truckPosition.lng] : [-1.6585, 29.2205]} zoom={13} style={{ height: '100%', width: '100%' }}>
-                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                {tourClients.map((tc: any) => tc.client?.location?.coordinates && <Marker key={tc.clientId} position={[tc.client.location.coordinates[0], tc.client.location.coordinates[1]]} />)}
-                {truckPosition && <Marker position={[truckPosition.lat, truckPosition.lng]} icon={truckIcon}><Popup>Camion</Popup></Marker>}
-              </MapContainer>
-              {!truckPosition && <div style={{ position: 'absolute', top: 10, right: 10, background: 'white', padding: 5, borderRadius: 5, zIndex: 1000 }}><Text size="xs" c="dimmed">En attente signal GPS...</Text></div>}
-          </Paper>
-      )}
+      {/* CARTE DE PLANIFICATION (Visible même en DRAFT maintenant) */}
+      <Paper withBorder p="0" mb="lg" h={400} style={{ overflow: 'hidden', position: 'relative' }}>
+          <MapContainer center={[-1.6585, 29.2205]} zoom={13} style={{ height: '100%', width: '100%' }}>
+            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+            
+            {/* 1. MARQUEURS BLEUS (Clients dans la tournée) */}
+            {tourClients.map((tc: any, index: number) => {
+                const coords = tc.client?.location?.coordinates;
+                if(coords) {
+                    // Attention: PostGIS = [Lon, Lat] -> Leaflet = [Lat, Lon]
+                    // Adaptez l'ordre selon ce que vous voyez sur la carte (si c'est dans l'océan, inversez)
+                    return <Marker key={tc.clientId} position={[coords[1], coords[0]]} icon={createNumberedIcon(index+1)}><Popup><b>{index+1}. {tc.client.name}</b></Popup></Marker>
+                }
+                return null;
+            })}
+
+            {/* 2. MARQUEURS VERTS (Clients disponibles) - Uniquement en DRAFT */}
+            {isEditable && availableClients.map((client: any) => {
+                const coords = client.location?.coordinates;
+                if(coords) {
+                    return (
+                        <Marker key={client.id} position={[coords[1], coords[0]]} icon={greenIcon}>
+                            <Popup>
+                                <div style={{textAlign: 'center'}}>
+                                    <b>{client.name}</b><br/>
+                                    <Button size="compact-xs" mt={5} onClick={() => handleAddClient(client)}>Ajouter +</Button>
+                                </div>
+                            </Popup>
+                        </Marker>
+                    )
+                }
+                return null;
+            })}
+
+            {/* 3. CAMION (Si actif) */}
+            {truckPosition && <Marker position={[truckPosition.lat, truckPosition.lng]} icon={truckIcon}><Popup>Camion</Popup></Marker>}
+          </MapContainer>
+      </Paper>
 
       <Grid>
-        {/* COLONNE GAUCHE : Clients Disponibles */}
         <Grid.Col span={6}>
-          <Paper withBorder p="md" h="70vh" style={{ display: 'flex', flexDirection: 'column' }}>
+          <Paper withBorder p="md" h="60vh" style={{ display: 'flex', flexDirection: 'column' }}>
             <Group justify="space-between" mb="md">
-                <Title order={4}>Clients Disponibles</Title>
-                {isEditable && <Button variant="light" color="violet" size="xs" leftSection={<IconBolt size={14}/>} onClick={handleAutoPlan}>Remplir Auto ⚡</Button>}
+                <Title order={4}>Disponibles ({availableClients.length})</Title>
+                {isEditable && <Button variant="light" color="violet" size="xs" leftSection={<IconBolt size={14}/>} onClick={handleAutoPlan}>Auto ⚡</Button>}
             </Group>
             <ScrollArea style={{ flex: 1 }}>
-              {availableClients.length === 0 && <Text c="dimmed" size="sm" ta="center">Aucun client disponible.</Text>}
               {availableClients.map(client => (
-                <Paper key={client.id} withBorder p="sm" mb="xs" shadow="none" bg={!isEditable ? 'gray.1' : 'white'}>
+                <Paper key={client.id} withBorder p="xs" mb="xs" bg={!isEditable ? 'gray.1' : 'white'}>
                   <Group justify="space-between">
-                    <div><Text fw={500}>{client.name}</Text><Text size="xs" c="dimmed">{client.street_address}</Text></div>
-                    <ActionIcon variant="light" color="blue" onClick={() => handleAddClient(client)} disabled={!isEditable}><IconPlus size={18} /></ActionIcon>
+                    <div><Text fw={500} size="sm">{client.name}</Text><Text size="xs" c="dimmed">{client.street_address}</Text></div>
+                    <ActionIcon variant="light" color="blue" onClick={() => handleAddClient(client)} disabled={!isEditable}><IconPlus size={16} /></ActionIcon>
                   </Group>
                 </Paper>
               ))}
@@ -237,14 +236,11 @@ export default function TourDetailsPage() {
           </Paper>
         </Grid.Col>
 
-        {/* COLONNE DROITE : Itinéraire Temps Réel */}
         <Grid.Col span={6}>
-          <Paper withBorder p="md" h="70vh" bg="gray.0" style={{ display: 'flex', flexDirection: 'column' }}>
-            
-            {/* Header avec Barre de Progression */}
+          <Paper withBorder p="md" h="60vh" bg="gray.0" style={{ display: 'flex', flexDirection: 'column' }}>
             <Group justify="space-between" mb="xs">
-                <Title order={4}>Itinéraire</Title>
-                <Badge variant="outline" color={progressPercent === 100 ? 'green' : 'blue'}>{completedStops} / {totalStops}</Badge>
+                <Title order={4}>Ordre de passage</Title>
+                <Badge variant="outline">{completedStops} / {totalStops}</Badge>
             </Group>
             <Progress value={progressPercent} color="green" size="sm" mb="md" animated={tour.status === 'IN_PROGRESS'} />
 
@@ -252,33 +248,23 @@ export default function TourDetailsPage() {
               <Droppable droppableId="tour-list" isDropDisabled={!isEditable}> 
                 {(provided) => (
                   <ScrollArea style={{ flex: 1 }} {...provided.droppableProps} ref={provided.innerRef}>
-                    {tourClients.length === 0 && <Text c="dimmed" ta="center" mt="xl">Tournée vide</Text>}
                     {tourClients.map((tc: any, index: number) => {
                       const isDone = tc.lastStatus === 'COMPLETED';
                       return (
                       <Draggable key={tc.clientId} draggableId={tc.clientId} index={index} isDragDisabled={!isEditable}>
                         {(provided, snapshot) => (
                           <Paper 
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            withBorder p="sm" mb="xs" shadow="sm"
-                            bg={isDone ? 'green.1' : snapshot.isDragging ? 'blue.0' : 'white'} // COULEUR DYNAMIQUE
-                            style={{ ...provided.draggableProps.style, display: 'flex', alignItems: 'center', borderColor: isDone ? '#40c057' : '#dee2e6' }}
+                            ref={provided.innerRef} {...provided.draggableProps} withBorder p="xs" mb="xs" shadow="sm"
+                            bg={isDone ? 'green.1' : snapshot.isDragging ? 'blue.0' : 'white'}
+                            style={{ ...provided.draggableProps.style, display: 'flex', alignItems: 'center' }}
                           >
-                            {isEditable && !isDone && <div {...provided.dragHandleProps} style={{ cursor: 'grab', marginRight: 10, color: '#aaa' }}><IconGripVertical size={18} /></div>}
-                            
-                            {/* Numéro ou Check */}
-                            {isDone ? 
-                                <ThemeIcon color="green" size={24} radius="xl" mr="sm"><IconCheck size={16} /></ThemeIcon> : 
-                                <Badge circle size="lg" mr="sm" color="gray">{index + 1}</Badge>
-                            }
-                            
+                            {isEditable && !isDone && <div {...provided.dragHandleProps} style={{ cursor: 'grab', marginRight: 10 }}><IconGripVertical size={16} /></div>}
+                            {isDone ? <ThemeIcon color="green" size={20} radius="xl" mr="sm"><IconCheck size={12} /></ThemeIcon> : <Badge circle size="md" mr="sm" color="gray">{index + 1}</Badge>}
                             <div style={{ flex: 1 }}>
-                              <Text fw={500} td={isDone ? 'line-through' : undefined} c={isDone ? 'dimmed' : undefined}>{tc.client?.name}</Text>
+                              <Text fw={500} size="sm" td={isDone ? 'line-through' : undefined}>{tc.client?.name}</Text>
                               <Text size="xs" c="dimmed">{tc.client?.street_address}</Text>
                             </div>
-
-                            {!isDone && <ActionIcon variant="filled" color="red" size="md" onClick={() => handleRemoveClient(tc.clientId)} disabled={!isEditable}><IconTrash size={16} /></ActionIcon>}
+                            {!isDone && <ActionIcon variant="filled" color="red" size="sm" onClick={() => handleRemoveClient(tc.clientId)} disabled={!isEditable}><IconTrash size={14} /></ActionIcon>}
                           </Paper>
                         )}
                       </Draggable>
