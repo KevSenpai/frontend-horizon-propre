@@ -1,7 +1,7 @@
 import React from 'react';
 import { AppShell, Burger, Group, Title, NavLink, Text, Button, Badge } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconUsers, IconTruck, IconMapPin, IconDashboard, IconUser, IconHistory, IconCurrencyDollar } from '@tabler/icons-react';
+import { IconUsers, IconTruck, IconMapPin, IconDashboard, IconUser, IconHistory, IconCurrencyDollar, IconWorld } from '@tabler/icons-react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 
 import TeamsPage from './pages/TeamsPage';
@@ -13,7 +13,7 @@ import DashboardPage from './pages/DashboardPage';
 import HistoryPage from './pages/HistoryPage';
 import FinancePage from './pages/FinancePage';
 import LoginPage from './pages/LoginPage';
-
+import GlobalMapPage from './pages/GlobalMapPage';
 export default function App() {
   const [opened, { toggle }] = useDisclosure();
   const navigate = useNavigate();
@@ -44,6 +44,7 @@ export default function App() {
     { label: 'Historique', icon: IconHistory, path: '/history', roles: ['ADMIN', 'PLANNER'] },
     // Finance : Admin seulement
     { label: 'Finance', icon: IconCurrencyDollar, path: '/finance', roles: ['ADMIN'] },
+    { label: 'Carte Globale', icon: IconWorld, path: '/map', roles: ['ADMIN', 'PLANNER'] },
   ];
 
   // Filtrer les menus visibles
@@ -97,7 +98,7 @@ export default function App() {
           <Route path="/planning" element={<ToursPage />} />
           <Route path="/planning/:id" element={<TourDetailsPage />} />
           <Route path="/history" element={<HistoryPage />} />
-
+          <Route path="/map" element={<GlobalMapPage />} /> 
           {/* Routes ADMIN UNIQUEMENT */}
           <Route path="/teams" element={<ProtectedRoute roles={['ADMIN']}><TeamsPage /></ProtectedRoute>} />
           <Route path="/vehicles" element={<ProtectedRoute roles={['ADMIN']}><VehiclesPage /></ProtectedRoute>} />
